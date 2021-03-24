@@ -10,40 +10,49 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(readr)
-library(dplyr)
+rm(list = ls())
+
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
+
 ```
 
+
 ```{r}
-coronavirus_daily <- read_csv("data/coronavirus_daily.csv")
 coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+coronavirus_summary <- select(coronavirus_summary, -country)
+
 vaccine <- read_csv("data/vaccinations.csv")
-```
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
 
-
-```{r}
-View(coronavirus_daily)
-View(coronavirus_summary)
-View(vaccine)
+combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
 ```
 
 # Inconsistent country names between two datasets 
+Countries that failed to merge: Guernsey, Jersey, Northern Cyprus, and Saint Helena
 ```{r}
-#edit country name in the vaccine data
-country_name_vaccine <- as.data.frame(unique(vaccine$country))
-country_name_vaccine <- cbind(country_name_vaccine, "vaccine")
-colnames(country_name_vaccine) <- c("country", "vaccine_data")
+country_name_vaccine <- vaccine%>%
+  distinct(iso_code, .keep_all=T )%>%
+  select(country, iso_code)%>%
+  rename("country_v" = "country", "iso_code_v" = "iso_code")%>%
+  mutate(vaccine_data = T)
 
 #edit country name in the covid data
-country_name_covid <- unique(coronavirus_summary$country)
-country_name_covid <- cbind(country_name_covid, "covid")
-colnames(country_name_covid) <- c("country", "covid_data")
-
+country_name_covid <- coronavirus_summary%>%
+  distinct(iso_code, .keep_all=T )%>%
+  select(country, iso_code)%>%
+  rename("country_covid" = "country", "iso_code_covid" = "iso_code")%>%
+  mutate(covid_data = T)
 #merge two data sets
-country_name <- merge(country_name_vaccine,country_name_covid, by="country", all=T)
+
+country_name <- merge(country_name_vaccine,country_name_covid, by.x="iso_code_v",by.y = "iso_code_covid", all.x=T)
 
 country_name_na <- country_name%>%
-  filter(is.na(vaccine_data) | is.na(covid_data) )
-View(country_name_na)
+  filter(is.na(covid_data))
+```
+
+```{r}
+combine <- merge(coronavirus_summary,vaccine, by="iso_code", all=T)
 ```
 
