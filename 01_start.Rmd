@@ -1,0 +1,23 @@
+---
+title: "01_start"
+author: "Ziwei Crystal Zang"
+date: "3/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readr)
+coronavirus_daily <- read_csv("data/coronavirus_daily.csv")
+
+coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+
+vaccine <- read_csv("data/vaccinations.csv")
+
+
+```
+
