@@ -1,0 +1,29 @@
+---
+title: "01_data_cleaning"
+author: "Crystal"
+date: "3/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list = ls())
+
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
+```
+
+
+```{r}
+coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+coronavirus_summary <- select(coronavirus_summary, -country)
+
+vaccine <- read_csv("data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+
+combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+```
