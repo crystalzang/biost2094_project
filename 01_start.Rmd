@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(readr)
+library(dplyr)
 ```
 
 ```{r}
@@ -26,16 +27,23 @@ View(coronavirus_summary)
 View(vaccine)
 ```
 
+# Inconsistent country names between two datasets 
 ```{r}
+#edit country name in the vaccine data
 country_name_vaccine <- as.data.frame(unique(vaccine$country))
 country_name_vaccine <- cbind(country_name_vaccine, "vaccine")
 colnames(country_name_vaccine) <- c("country", "vaccine_data")
-View(country_name_vaccine)
+
+#edit country name in the covid data
 country_name_covid <- unique(coronavirus_summary$country)
 country_name_covid <- cbind(country_name_covid, "covid")
 colnames(country_name_covid) <- c("country", "covid_data")
-View(country_name_covid)
-library(dplyr)
-country_name <- left_join(country_name_vaccine,country_name_covid, "country")
+
+#merge two data sets
+country_name <- merge(country_name_vaccine,country_name_covid, by="country", all=T)
+
+country_name_na <- country_name%>%
+  filter(is.na(vaccine_data) | is.na(covid_data) )
+View(country_name_na)
 ```
 
