@@ -9,15 +9,33 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
 ```{r}
 library(readr)
+```
+
+```{r}
 coronavirus_daily <- read_csv("data/coronavirus_daily.csv")
-
 coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
-
 vaccine <- read_csv("data/vaccinations.csv")
+```
 
 
+```{r}
+View(coronavirus_daily)
+View(coronavirus_summary)
+View(vaccine)
+```
+
+```{r}
+country_name_vaccine <- as.data.frame(unique(vaccine$country))
+country_name_vaccine <- cbind(country_name_vaccine, "vaccine")
+colnames(country_name_vaccine) <- c("country", "vaccine_data")
+View(country_name_vaccine)
+country_name_covid <- unique(coronavirus_summary$country)
+country_name_covid <- cbind(country_name_covid, "covid")
+colnames(country_name_covid) <- c("country", "covid_data")
+View(country_name_covid)
+library(dplyr)
+country_name <- left_join(country_name_vaccine,country_name_covid, "country")
 ```
 
