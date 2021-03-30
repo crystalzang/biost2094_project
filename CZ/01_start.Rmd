@@ -18,11 +18,11 @@ for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, chara
 
 
 ```{r}
-coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+coronavirus_summary <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/coronavirus_summary.csv")
 coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
 coronavirus_summary <- select(coronavirus_summary, -country)
 
-vaccine <- read_csv("data/vaccinations.csv")
+vaccine <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccinations.csv")
 name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
 vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
 
