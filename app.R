@@ -20,62 +20,90 @@ if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.u
 
 
 # import data
-coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
-coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
-coronavirus_summary <- select(coronavirus_summary, -country)
-
-vaccine <- read_csv("data/vaccinations.csv")
-name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
-
-combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
-
-p1 <- ggplot(data = combine, aes(x = total_deaths, y = total_vaccinations)) + geom_point()  + aes(colour = serious_or_critical) + facet_wrap(~continent, ncol = 4) + theme(legend.position = "right") + labs(title = "")
+# coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+# coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+# coronavirus_summary <- select(coronavirus_summary, -country)
+#
+# vaccine <- read_csv("data/vaccinations.csv")
+# name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+# vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+#
+# combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+#
+# p1 <- ggplot(data = combine, aes(x = total_deaths, y = total_vaccinations)) +
+#   geom_point()  + aes(colour = serious_or_critical) +
+#   facet_wrap(~continent, ncol = 4) +
+#   theme(legend.position = "right") +
+#   labs(title = "")
 
 # Define UI ----
-ui <- bootstrapPage(
-    tabPanel("Covid-19 Vaccine Map",
-             p1),
-    tabPanel("Covid-19 Vaccine Progress",
-             p1),
-    tabPanel("Vaccine Cases Comparison",
-             p1),
-    tabPanel("Data",
-             datatable(combine[1:10,])
-  ),
-  tabPanel("About the site",
-           tags$div(
-           tags$h4("Last update"),  h6(paste0(update)),
+# ui <- fluidPage(
+#     tabPanel("Covid-19 Vaccine Map",
+#              p1),
+#     tabPanel("Covid-19 Vaccine Progress",
+#              p1),
+#     tabPanel("Vaccine Cases Comparison",
+#              p1),
+#     tabPanel("Data",
+#              datatable(combine[1:10,])
+#   ),
+#   tabPanel("About the site",
+#            tags$div(
+#            tags$h4("Last update"),  h6(paste0(update)),
+#
+#            tags$br(),tags$br(),tags$h4("Background"),
+#            "SARS-CoV-2 has impacted the world in an unprecedented way,
+#            with the world having changed significantly since H2N2/H3N2
+#            pandemics in the mid 1900’s and even more since the major comparison
+#            point, the 1918 flu pandemic. The world is much more global now.
+#            Adjusted for inflation, the value of goods shipped internationally in
+#            2014 was six times higher than the value of shipped goods in 1969, the
+#            last year of the H3N2 pandemic. In comparison to 1919, that number goes
+#            all the way to 53 times as much as shipped in 2014 (Beltekian). As such,
+#            returning to normalcy is a worldwide goal. Right now, the main indicator
+#            we have is the vaccination rate for each country, each of which has its
+#            own unique situation and challenges to account for, so viewing that data
+#            quickly and clearly is an important piece to know how close we are to the
+#            end of the pandemic.",
+#            tags$br(),tags$br(),tags$h4("Code"),
+#            "Code and input data used to generate this Shiny mapping tool are available on ",
+#            tags$a(href="https://github.com/czang97/biost2094_project", "Github.")
+#            )
+#   )
+# )
 
-           tags$br(),tags$br(),tags$h4("Background"),
-           "SARS-CoV-2 has impacted the world in an unprecedented way,
-           with the world having changed significantly since H2N2/H3N2
-           pandemics in the mid 1900’s and even more since the major comparison
-           point, the 1918 flu pandemic. The world is much more global now.
-           Adjusted for inflation, the value of goods shipped internationally in
-           2014 was six times higher than the value of shipped goods in 1969, the
-           last year of the H3N2 pandemic. In comparison to 1919, that number goes
-           all the way to 53 times as much as shipped in 2014 (Beltekian). As such,
-           returning to normalcy is a worldwide goal. Right now, the main indicator
-           we have is the vaccination rate for each country, each of which has its
-           own unique situation and challenges to account for, so viewing that data
-           quickly and clearly is an important piece to know how close we are to the
-           end of the pandemic.",
-           tags$br(),tags$br(),tags$h4("Code"),
-           "Code and input data used to generate this Shiny mapping tool are available on ",
-           tags$a(href="https://github.com/czang97/biost2094_project", "Github.")
-           )
+ui <- navbarPage(title = "COVID-19 Vaccine",
+    # First Page
+            tabPanel(title = "About the site",
+                  tags$br(),tags$br(),tags$h4("Background"),
+                  "SARS-CoV-2 has impacted the world in an unprecedented way,
+                      with the world having changed significantly since H2N2/H3N2
+                      pandemics in the mid 1900’s and even more since the major comparison
+                      point, the 1918 flu pandemic. The world is much more global now.
+                      Adjusted for inflation, the value of goods shipped internationally in
+                      2014 was six times higher than the value of shipped goods in 1969, the
+                      last year of the H3N2 pandemic. In comparison to 1919, that number goes
+                      all the way to 53 times as much as shipped in 2014 (Beltekian). As such,
+                      returning to normalcy is a worldwide goal.",
+                  tags$br(),tags$br(),
+                    "Right now, the main indicator
+                      we have is the vaccination rate for each country, each of which has its
+                      own unique situation and challenges to account for, so viewing that data
+                      quickly and clearly is an important piece to know how close we are to the
+                      end of the pandemic.",
+                  tags$br(),tags$br(),tags$h4("Code"),
+                  "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
+                ),
+             tabPanel(title = "Map"),
+             tabPanel(title = "Trend")
   )
-)
 
 
 
 
 
 # Define server logic ----
-server <- function(input, output) {
-
-}
+server <- function(input, output) {}
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
