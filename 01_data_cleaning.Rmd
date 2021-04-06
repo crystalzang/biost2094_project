@@ -25,5 +25,10 @@ vaccine <- read_csv("data/vaccinations.csv")
 name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
 vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
 
+coronavirus_daily <- read_csv("data/coronavirus_daily.csv")
+
 combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+
+combine2 <- merge(vaccine,coronavirus_daily, by=intersect("iso_code", "date"), all=T)
+
 ```
