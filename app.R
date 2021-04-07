@@ -19,7 +19,6 @@ if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
-=======
     # First Page
             tabPanel(title = "About the site",
                   tags$br(),tags$br(),tags$h4("Background"),
