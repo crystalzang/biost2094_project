@@ -1,0 +1,193 @@
+---
+title: "leaflet"
+author: "Henry Thorpe"
+date: "4/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+
+```{r}
+rm(list = ls())
+
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
+```
+# Load data
+
+```{r}
+vaccine <- read_csv("data/vaccinations.csv")
+#name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+#vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+```
+```{r}
+coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+```
+## Countries in the vaccine data not in summary data
+
+```{r}
+#subset(vaccine_by_country,duplicated(vaccine_by_country))
+#subset(vaccine_by_country,duplicated(vaccine_by_country$country))
+```
+
+
+```{r}
+unique(vaccine$country[!(vaccine$country %in% coronavirus_summary$country)])
+```
+
+## iso_code in the vaccine data not in summary data
+
+```{r}
+unique(vaccine$iso_code[!(vaccine$iso_code %in% coronavirus_summary$iso_code)])
+```
+
+## different iso_code correspondent country name in vaccine data
+
+```{r}
+unique(vaccine$country[vaccine$iso_code %in% c("OWID_ENG", "GGY", "JEY", "OWID_CYN", "OWID_NIR", "SHN", "OWID_SCT","OWID_WLS")])
+```
+
+# Check missing value
+
+```{r}
+apply(vaccine, 2, function(x) sum(is.na(x)))
+
+```
+```{r}
+subset(vaccine,country %in% c("England", "United Kingdom"))
+```
+
+
+```{r}
+str(vaccine)
+```
+
+
+# Aggregate by country
+
+```{r}
+vaccine_by_country<-vaccine%>%select(country,iso_code,,date,people_vaccinated,total_vaccinations,total_vaccinations_per_hundred,people_vaccinated_per_hundred,vaccines)%>%group_by(country)%>%filter(!is.na(total_vaccinations))%>%filter(total_vaccinations==max(total_vaccinations)) %>% slice(which.max(as.Date(date)))
+head(vaccine_by_country, n=50)
+```
+## Total vaccinated by country
+
+```{r,fig.height=20,fig.width=12}
+options(repr.plot.width=30,repr.plot.height=20)
+total_vaccinated<-vaccine_by_country%>%filter(!is.na(people_vaccinated)) %>% select(country,people_vaccinated)%>% arrange(desc(people_vaccinated))
+total_vaccinated %>% ggplot()+geom_col(mapping = aes(x = reorder(country,people_vaccinated),y =people_vaccinated/10000000, fill=country), show.legend = FALSE)+
+                    coord_flip()+
+                theme_classic()+
+                    ggtitle(label = "Total vaccinated  by countries.")+
+                        xlab(label = "Countries")+
+                        ylab(label = "millions")
+```
+##Top 10 countries with most vaccinated population
+
+```{r}
+options(repr.plot.width=30,repr.plot.height=20)
+total_vaccinated<-vaccine_by_country%>%filter(!is.na(people_vaccinated)) %>% select(country,people_vaccinated)%>% arrange(desc(people_vaccinated))
+total_vaccinated %>% head(10) %>% ggplot()+geom_col(mapping = aes(x = reorder(country,people_vaccinated),y =people_vaccinated/10000000, fill=country), show.legend = FALSE)+
+                    coord_flip()+
+                theme_classic()+
+                    ggtitle(label = "Total vaccinated  by countries.")+
+                        xlab(label = "Countries")+
+                        ylab(label = "millions")
+```
+##Percent of total population vaccinated by country
+
+
+```{r,fig.height=20,fig.width=12}
+vaccine_prop_by_country<-vaccine_by_country %>% filter(!is.na(people_vaccinated_per_hundred)) %>% select(country,people_vaccinated_per_hundred) %>% arrange(desc(people_vaccinated_per_hundred))
+
+vaccine_prop_by_country %>% arrange(desc(people_vaccinated_per_hundred)) %>%  ggplot()+geom_col(mapping = aes(x= reorder(country,people_vaccinated_per_hundred),y = people_vaccinated_per_hundred),fill="green")+
+                    coord_flip()+
+                        theme_light()+
+                            ggtitle(label = "Proportion of the population vaccinated.")+
+                                geom_text(aes(x = country,y =people_vaccinated_per_hundred,label=people_vaccinated_per_hundred ),hjust=-0.5)+
+                                xlab(label = "Countries ")+
+                                ylab(label = "Percentage")+
+                                scale_y_continuous(limits = c(0,90),breaks = c(0,20,40))
+```
+## Top 15 countries with the biggest percentage of people vaccinated
+
+```{r}
+vaccine_prop_by_country<-vaccine_by_country %>% filter(!is.na(people_vaccinated_per_hundred)) %>% select(country,people_vaccinated_per_hundred) %>% arrange(desc(people_vaccinated_per_hundred))
+
+vaccine_prop_by_country %>% head(15)%>%arrange(desc(people_vaccinated_per_hundred)) %>%  ggplot()+geom_col(mapping = aes(x= reorder(country,people_vaccinated_per_hundred),y = people_vaccinated_per_hundred),fill="green")+
+                    coord_flip()+
+                        theme_light()+
+                            ggtitle(label = "Proportion of the population vaccinated.")+
+                                geom_text(aes(x = country,y =people_vaccinated_per_hundred,label=people_vaccinated_per_hundred ),hjust=-0.5)+
+                                xlab(label = "Countries ")+
+                                ylab(label = "Percentage")+
+                                scale_y_continuous(limits = c(0,90),breaks = c(0,20,40))
+```
+## Difference between people_vaccinated and toal_vaccinations
+
+Some vaccines maybe end of no use because of any reason.
+
+```{r}
+head(vaccine_by_country[c("country","people_vaccinated","total_vaccinations")],20)
+```
+
+```{r}
+#vaccine_by_country$use_rate = vaccine_by_country$people_vaccinated/vaccine_by_country$total_vaccinations
+```
+
+### Countries with less than 70% of vaccines were in use
+
+```{r}
+vaccine_use_rate_by_country<-vaccine_by_country %>% filter(!is.na(use_rate)) %>% select(country,use_rate) %>% arrange(desc(use_rate))
+
+vaccine_use_rate_by_country %>% subset(use_rate<0.7)%>% ggplot(aes(x=country,y=use_rate))+geom_bar(stat="identity", position=position_dodge(),fill= "#00AFBB")+theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle("Vaccine in use rate")+
+  xlab("Country")+ 
+  ylab("Vaccine in use rate")
+```
+### Only 5 countries with less than 60% of vaccines were in use
+
+```{r}
+subset(vaccine_by_country,vaccine_by_country$use_rate<0.6)
+```
+
+#Aggregated by vaccine brand
+
+
+```{r}
+vaccine_by_brand<-vaccine%>%select(vaccines,people_vaccinated)%>%group_by(vaccines)%>%filter(!is.na(people_vaccinated))%>%filter(people_vaccinated==max(people_vaccinated)) 
+vaccine_by_brand
+```
+```{r}
+#countries_cnt_by_brand<-vaccine%>%select(vaccines,country)%>%group_by(vaccines)%>%tally()
+```
+
+## Vaccines most widely used (by country numbers)
+
+```{r,fig.height=15,fig.width=15}
+options(repr.plot.width=12,repr.plot.height=14)
+vaccine_by_country%>%group_by(vaccines)%>%
+    ggplot(aes(x = vaccines)) +
+    geom_bar(aes(fill = country), show.legend = FALSE) +
+    labs(x = "Vaccines", y = "Number Of Countries") +
+    theme(axis.text.x = element_text(size=16,angle = 90, vjust = 0.5, hjust=1),
+          axis.text.y = element_text(size=16),
+          axis.title.x = element_text(size=20),
+          axis.title.y = element_text(size=20))
+```
+
+## Vaccines most widely used (by number of people)
+
+```{r,fig.height=15,fig.width=15}
+ggplot(vaccine_by_brand,aes(x=vaccines,y=people_vaccinated)) + geom_bar(stat='identity',fill="blue", width=.5)+labs(x = "Vaccines", y = "Total number of people vaccinated") + theme_classic()+
+    theme(axis.text.x = element_text(size=16,angle = 90, vjust = 0.5, hjust=1),
+          axis.text.y = element_text(size=16),
+          axis.title.x = element_text(size=20),
+          axis.title.y = element_text(size=20))
+```
+
+
+
