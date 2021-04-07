@@ -37,10 +37,25 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                       own unique situation and challenges to account for, so viewing that data
                       quickly and clearly is an important piece to know how close we are to the
                       end of the pandemic.",
-                     
+
                   tags$br(),tags$br(),tags$h4("Code"),
                   "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
-                ),
+
+                  tags$br(),tags$br(),tags$h4("Contributor"),
+                  br(),
+                  "Crystal Zang",
+                  br(),
+                  "Liling Liu",
+                  br(),
+                  "Alexis Cenname",
+                  br(),
+                  "Henry Thrope",
+                  br(),
+                  br(),
+                  br(),
+                  br(),
+                  br(),
+                  img(src = "logo.jpeg",height = 130, width=250 )),
              tabPanel(title = "Worldwide Vaccine Progress"),
              tabPanel(title = "Vaccine Progress Map"),
              tabPanel(title = "US Vaccine Progress"),
