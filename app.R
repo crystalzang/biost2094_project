@@ -19,6 +19,7 @@ if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
+=======
     # First Page
             tabPanel(title = "About the site",
                   tags$br(),tags$br(),tags$h4("Background"),
@@ -37,6 +38,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                       own unique situation and challenges to account for, so viewing that data
                       quickly and clearly is an important piece to know how close we are to the
                       end of the pandemic.",
+                     
                   tags$br(),tags$br(),tags$h4("Code"),
                   "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
                 ),

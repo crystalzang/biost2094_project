@@ -1,0 +1,26 @@
+---
+title: "02_vaccine_us"
+author: "Ziwei Crystal Zang"
+date: "4/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list = ls())
+
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor")) {library(pkg, character.only = TRUE)}
+```
+
+```{r}
+vaccine_us <- read_csv("data/vaccine_us.csv")
+vaccine_us <- vaccine_us%>%
+  clean_names()%>%
+  select(state_territory_federal_entity, percent_of_18_pop_with_at_least_one_dose_by_state_of_residence, percent_of_18_pop_fully_vaccinated_by_state_of_residence, total_number_of_pfizer_doses_delivered)
+
+
+```
+
