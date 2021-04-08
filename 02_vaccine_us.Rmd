@@ -1,0 +1,67 @@
+---
+title: "02_vaccine_us"
+author: "Ziwei Crystal Zang"
+date: "4/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list = ls())
+
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps")) {library(pkg, character.only = TRUE)}
+```
+
+```{r}
+vaccine_us <- read_csv("data/vaccine_us.csv")
+vaccine_us <- vaccine_us%>%
+  clean_names()
+
+vaccine_us_new <- vaccine_us%>%
+  select(state_territory_federal_entity,
+         percent_of_total_pop_with_at_least_one_dose_by_state_of_residence,
+         percent_of_total_pop_fully_vaccinated_by_state_of_residence,
+         percent_of_65_pop_with_at_least_one_dose_by_state_of_residence,
+         percent_of_65_pop_fully_vaccinated_by_state_of_residence,
+         percent_of_18_pop_with_at_least_one_dose_by_state_of_residence, percent_of_18_pop_fully_vaccinated_by_state_of_residence, total_number_of_pfizer_doses_delivered, total_number_of_pfizer_doses_adminstered, total_number_of_janssen_doses_delivered, total_number_of_janssen_doses_administered, 
+         total_number_of_moderna_doses_delivered,
+         total_number_of_moderna_doses_administered)%>%
+  rename("state" = "state_territory_federal_entity", 
+         "pct_vaccinated" = "percent_of_total_pop_with_at_least_one_dose_by_state_of_residence",
+         "pct_fully_vaccinated" = "percent_of_total_pop_fully_vaccinated_by_state_of_residence",
+         "pct_65_vaccinated" = "percent_of_65_pop_with_at_least_one_dose_by_state_of_residence",
+         "pct_65_fully_vaccinated"= "percent_of_65_pop_fully_vaccinated_by_state_of_residence",
+         "pct_18_vaccinated" = "percent_of_18_pop_with_at_least_one_dose_by_state_of_residence",
+         "pct_18_fully_vaccinated"= "percent_of_18_pop_fully_vaccinated_by_state_of_residence",
+         "pfizer_deliver" = "total_number_of_pfizer_doses_delivered",
+         "pfizer_admin"= "total_number_of_pfizer_doses_adminstered",
+         "janssen_deliver" = "total_number_of_janssen_doses_delivered",
+         "janssen_admin" = "total_number_of_janssen_doses_administered",
+         "moderna_deliver" = "total_number_of_moderna_doses_delivered",
+         "moderna_admin" = "total_number_of_moderna_doses_administered"
+       )%>%
+  mutate(janssen_pct_admin = (janssen_deliver-janssen_admin)/janssen_deliver,
+         pfizer_pct_admin = (pfizer_deliver - pfizer_admin)/pfizer_deliver ,
+         moderna_pct_admin =  (moderna_deliver-moderna_admin)/moderna_deliver)
+
+vaccine_us_new <- apply(vaccine_us_new, 2, as.numeric)
+vaccine_us_new <- as.data.frame(vaccine_us_new)
+vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
+vaccine_us_new$state <-  tolower(vaccine_us_new$state)
+
+```
+
+```{r}
+us_states <- map_data("state")
+us_states <- left_join(us_states, vaccine_us_new, by=c("region" = "state"))
+
+ggplot(data = us_states,
+            aes(x = long, y = lat,
+                group = group, fill = pfizer_pct_admin))+
+  geom_polygon(color = "gray90", size = 0.1) +
+    coord_map(projection = "albers", lat0 = 39, lat1 = 45)
+```
+
