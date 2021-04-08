@@ -52,13 +52,21 @@ vaccine_us_new <- as.data.frame(vaccine_us_new)
 vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
 vaccine_us_new$state <-  tolower(vaccine_us_new$state)
 
+vaccine_us_long <- vaccine_us_new%>%
+  gather(key ="population" , value="percent_vaccinated", pct_vaccinated, pct_65_vaccinated, pct_18_vaccinated )%>%
+  mutate(population = if_else(population == "pct_18_vaccinated", "18+",
+                              if_else(population == "pct_65_vaccinated","65+",
+                                      "all")))
+
+#join with the us state dataset for the plot
+us_states <- map_data("state")
+us_states <- left_join(us_states, vaccine_us_long, by=c("region" = "state"))
+
 ```
 
 ```{r}
-us_states <- map_data("state")
-us_states <- left_join(us_states, vaccine_us_new, by=c("region" = "state"))
 
-ggplot(data = us_states,
+ggplot(data = filter(us_states, population == "all"),
             aes(x = long, y = lat,
                 group = group, fill = pfizer_pct_admin))+
   geom_polygon(color = "gray90", size = 0.1) +
