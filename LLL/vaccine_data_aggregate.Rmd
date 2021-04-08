@@ -32,6 +32,10 @@ coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'countr
 #subset(vaccine_by_country,duplicated(vaccine_by_country$country))
 ```
 
+```{r}
+combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+```
+
 
 ```{r}
 unique(vaccine$country[!(vaccine$country %in% coronavirus_summary$country)])
@@ -55,6 +59,7 @@ unique(vaccine$country[vaccine$iso_code %in% c("OWID_ENG", "GGY", "JEY", "OWID_C
 apply(vaccine, 2, function(x) sum(is.na(x)))
 
 ```
+
 ```{r}
 subset(vaccine,country %in% c("England", "United Kingdom"))
 ```
@@ -126,14 +131,14 @@ vaccine_prop_by_country %>% head(15)%>%arrange(desc(people_vaccinated_per_hundre
 ```
 ## Difference between people_vaccinated and toal_vaccinations
 
-Some vaccines maybe end of no use because of any reason.
+Some vaccines maybe end up with no use because of any reason.
 
 ```{r}
 head(vaccine_by_country[c("country","people_vaccinated","total_vaccinations")],20)
 ```
 
 ```{r}
-#vaccine_by_country$use_rate = vaccine_by_country$people_vaccinated/vaccine_by_country$total_vaccinations
+vaccine_by_country$use_rate = vaccine_by_country$people_vaccinated/vaccine_by_country$total_vaccinations
 ```
 
 ### Countries with less than 70% of vaccines were in use
