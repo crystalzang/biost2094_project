@@ -18,6 +18,10 @@ if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
 
+#new
+if(!require(janitor)) install.packages("janitor", repos = "http://cran.us.r-project.org")
+if(!require(tidyr)) install.packages("tidyr", repos = "http://cran.us.r-project.org")
+
 
 vaccine_us <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccine_us.csv")
 vaccine_us <- vaccine_us%>%
@@ -122,7 +126,8 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           ),
                           mainPanel(
                             "Data is from",
-                            tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC")
+                            tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
+                            plotOutput("us_vaccine_plot")
 
                           )
                           )
@@ -133,13 +138,16 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 
 # Define server logic ----
 server <- function(input, output) {
-  output$plot <- renderPlot{
+  output$us_vaccine_plot <- renderPlot({
+
     ggplot(data = filter(us_states, population == input$pop),
-           aes(x = long, y = lat,
-               group = group, fill = pfizer_pct_admin))+
-      geom_polygon(color = "gray90", size = 0.1) +
-      coord_map(projection = "albers", lat0 = 39, lat1 = 45)
-  }
+    aes(x = long, y = lat,
+        group = group, fill = percent_vaccinated))+
+    geom_polygon(color = "gray90", size = 0.1) +
+    coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
+    labs(title=paste0("Vaccination Stuatus in the U.S. Among ", input$pop),
+         x =" ", y = " ")
+  })
   }
 
 

@@ -62,11 +62,13 @@ vaccine_us_long <- vaccine_us_new%>%
 #join with the us state dataset for the plot
 us_states <- map_data("state")
 us_states <- left_join(us_states, vaccine_us_long, by=c("region" = "state"))
-
-ggplot(data = filter(us_states, population == "all"),
+table(vaccine_us_long$population)
+ggplot(data = filter(us_states, population == "18+"),
             aes(x = long, y = lat,
-                group = group, fill = pfizer_pct_admin))+
+                group = group, fill = percent_vaccinated))+
   geom_polygon(color = "gray90", size = 0.1) +
-    coord_map(projection = "albers", lat0 = 39, lat1 = 45)
+    coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
+  labs(title=paste0("Vaccination Stuatus in the U.S. Among ", "18+"),
+        x =" ", y = " ")
 ```
 
