@@ -1,0 +1,152 @@
+---
+title: "Data Analysis 2"
+author: "Alexis Cenname"
+date: "9/30/2020"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: true
+    toc_depth: '3'
+    code_folding: show
+---
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE)
+```
+
+# Load Library
+
+```{r}
+library(ggplot2)
+library(dygraphs)
+library(countrycode)
+library(dplyr)
+```
+
+# Data Import
+
+```{r}
+#crystal code
+
+rm(list = ls())
+
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
+
+coronavirus_summary <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_summary.csv")
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+coronavirus_summary <- select(coronavirus_summary, -country)
+vaccine <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+coronavirus_daily <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_daily.csv")
+```
+
+
+#Top 20 total deaths from COVID by country
+
+```{r}
+
+#aggregate by country, continent, max total deaths
+
+aggregated_deaths <- aggregate(combine$total_deaths, by = list(combine$country, combine$continent), max) %>% arrange(desc(x)) %>% drop_na(x)
+
+#plot
+ggplot(aggregated_deaths[1:20,], aes(x, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Top 20 Total Deaths From COVID By Country", y="Country", x="Total Deaths", fill="Country Legend") + theme(legend.position = "none")
+```
+
+
+
+#Top 20 recoveries by country
+
+```{r}
+aggregated_recoveries <- aggregate(combine$total_recovered, by = list(combine$country, combine$continent), max) %>% arrange(desc(x)) %>% drop_na(x)
+
+ggplot(aggregated_recoveries[1:20,], aes(x, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Top 20 Total Recoveries By Country", y="Country", x="Total Recoveries", fill="Country Legend") + theme(legend.position = "none")
+```
+
+#Top 20 serious cases by country
+
+```{r}
+aggregated_serious <- aggregate(combine$serious_or_critical, by = list(combine$country, combine$continent), max) %>% arrange(desc(x)) %>% drop_na(x)
+
+ggplot(aggregated_serious[1:20,], aes(x, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Top 20 Total Serious Cases By Country", y="Country", x="Total Serious/Critical Cases", fill="Country Legend") + theme(legend.position = "none")
+```
+
+#Top 20 Total Tests by country
+
+```{r}
+aggregated_tests <- aggregate(combine$total_tests, by = list(combine$country, combine$continent), max) %>% arrange(desc(x)) %>% drop_na(x)
+
+ggplot(aggregated_tests[1:20,], aes(x/1e8, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Top 20 Total Tests By Country", y="Country", x="Total Tests (*1e8)", fill="Country Legend") + theme(legend.position = "none")
+```
+
+
+#Top 20 Total Deaths Per One Million by country
+
+```{r}
+aggregated_death_per_mil <- aggregate(combine$total_deaths_per_1m_population, by = list(combine$country, combine$continent), max) %>% arrange(desc(x)) %>% drop_na(x)
+
+ggplot(aggregated_death_per_mil[1:20,], aes(x, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Top 20 Deaths Per Million By Country", y="Country", x="Total Deaths Per Million", fill="Country Legend") +theme(legend.position = "none")
+```
+
+
+#Top 20 Total Tests Per Million
+
+```{r}
+aggregated_test_per_mil <- aggregate(combine$total_tests_per_1m_population, by = list(combine$country, combine$continent), max) %>% arrange(desc(x)) %>% drop_na(x)
+
+ggplot(aggregated_test_per_mil[1:20,], aes(x, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Top 20 Tests Per Million By Country", y="Country", x="Total Tests", fill="Country Legend") + theme(legend.position = "none")
+```
+
+
+#Total Deaths By Continent
+
+```{r}
+aggregate_death_continent <- aggregate(aggregated_deaths$x, by = list(aggregated_deaths$Group.2), sum) %>% drop_na(x)
+
+ggplot(aggregate_death_continent, aes(x/1e5, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Total Deaths By Continent", y="Continent", x="Total Deaths(*1e5)", fill="Continent Legend") + coord_flip() + theme(legend.position = "none")
+```
+
+
+#Total Recovered by Continent
+
+```{r}
+aggregate_recovered_continent <- aggregate(aggregated_recoveries$x, by = list(aggregated_recoveries$Group.2), sum) %>% drop_na(x)
+
+ggplot(aggregate_recovered_continent, aes(x/1e5, y=Group.1, fill=Group.1)) + geom_col() + theme_classic() + labs(title="Total Recoveries By Continent", y="Continent", x="Total Recovered(*1e6)", fill="Continent Legend") + coord_flip()
+```
+
+
+
+# Merge vaccine and daily_coronavirus
+
+```{r}
+vac_daily <- merge(coronavirus_daily, vaccine, by=c("country", "date"))
+```
+
+
+# Active cases vs. total vaccinated (Afghanistan)
+
+```{r}
+afghanistan <- vac_daily %>% drop_na(active_cases, date) %>% subset(country==c("Afghanistan"))
+ggplot(afghanistan, aes(date, active_cases, color="pink")) + geom_point() + geom_line(group=1) + labs(title="Active Cases Daily", y="Dates", x="Active Cases") + theme_classic() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + theme(legend.position = "none")
+
+```
+
+# Deaths per day (Afghanistan)
+
+```{r}
+afghanistan_2 <- vac_daily %>% drop_na(daily_new_deaths, date) %>% subset(country==c("Afghanistan"))
+ggplot(afghanistan_2, aes(date, daily_new_deaths, color="black")) + geom_point() + geom_line(group=1) + labs(title="New Deaths Daily", y="Dates", x="Deaths") + theme_classic() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + theme(legend.position = "none")
+```
+
+# Create tab in RShiny
+
+```{r}
+
+```
+
