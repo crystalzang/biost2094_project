@@ -16,12 +16,13 @@ for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps")) 
 ```
 
 ```{r}
-vaccine_us <- read_csv("data/vaccine_us.csv")
+vaccine_us <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccine_us.csv")
 vaccine_us <- vaccine_us%>%
   clean_names()
 
 vaccine_us_new <- vaccine_us%>%
   select(state_territory_federal_entity,
+         people_with_at_least_one_dose_by_state_of_residence,
          percent_of_total_pop_with_at_least_one_dose_by_state_of_residence,
          percent_of_total_pop_fully_vaccinated_by_state_of_residence,
          percent_of_65_pop_with_at_least_one_dose_by_state_of_residence,
@@ -30,6 +31,7 @@ vaccine_us_new <- vaccine_us%>%
          total_number_of_moderna_doses_delivered,
          total_number_of_moderna_doses_administered)%>%
   rename("state" = "state_territory_federal_entity", 
+         "people_vaccinated" = "people_with_at_least_one_dose_by_state_of_residence",
          "pct_vaccinated" = "percent_of_total_pop_with_at_least_one_dose_by_state_of_residence",
          "pct_fully_vaccinated" = "percent_of_total_pop_fully_vaccinated_by_state_of_residence",
          "pct_65_vaccinated" = "percent_of_65_pop_with_at_least_one_dose_by_state_of_residence",
@@ -43,7 +45,7 @@ vaccine_us_new <- vaccine_us%>%
          "moderna_deliver" = "total_number_of_moderna_doses_delivered",
          "moderna_admin" = "total_number_of_moderna_doses_administered"
        )%>%
-  mutate(janssen_pct_admin = (janssen_deliver-janssen_admin)/janssen_deliver,
+  mutate( janssen_pct_admin = (janssen_deliver-janssen_admin)/janssen_deliver,
          pfizer_pct_admin = (pfizer_deliver - pfizer_admin)/pfizer_deliver ,
          moderna_pct_admin =  (moderna_deliver-moderna_admin)/moderna_deliver)
 
@@ -52,23 +54,65 @@ vaccine_us_new <- as.data.frame(vaccine_us_new)
 vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
 vaccine_us_new$state <-  tolower(vaccine_us_new$state)
 
+vaccine_brand <- vaccine_us_new%>%
+  mutate(population = people_vaccinated/ pct_vaccinated * 100,
+         pct_janssen = janssen_admin/population * 100,
+         pct_moderna = moderna_admin/population * 100,
+         pct_pfizer = pfizer_admin/population * 100)%>%
+  gather(key = "brand", value = "percent", pct_pfizer, pct_janssen, pct_moderna)%>%
+  mutate(brand = if_else(brand == "pct_janssen", "Janssen",
+                        if_else(brand == "pct_moderna", "Moderna", "Pfizer")))
+
+  
 
 vaccine_us_long <- vaccine_us_new%>%
   gather(key ="population" , value="percent_vaccinated", pct_vaccinated, pct_65_vaccinated, pct_18_vaccinated )%>%
   mutate(population = if_else(population == "pct_18_vaccinated", "18+",
                               if_else(population == "pct_65_vaccinated","65+",
-                                      "all")))
+                                      "all")))%>%
+    gather(key ="population2" , value="percent_fully_vaccinated", pct_fully_vaccinated, pct_65_fully_vaccinated, pct_18_fully_vaccinated )%>%
+  select(-population2)%>%
+  gather(key = "status", value = "percent", percent_vaccinated, percent_fully_vaccinated)%>%
+  mutate(status = if_else(status == "percent_fully_vaccinated", "fully vaccinated", "at least one dose"))
 
 #join with the us state dataset for the plot
 us_states <- map_data("state")
 us_states <- left_join(us_states, vaccine_us_long, by=c("region" = "state"))
+
 table(vaccine_us_long$population)
-ggplot(data = filter(us_states, population == "18+"),
+table(vaccine_us_long$status)
+
+ggplot(data = filter(us_states, population == "18+", status== "fully vaccinated"),
             aes(x = long, y = lat,
-                group = group, fill = percent_vaccinated))+
+                group = group, fill = percent))+
   geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
   labs(title=paste0("Vaccination Stuatus in the U.S. Among ", "18+"),
+        x =" ", y = " ")
+
+
+```
+
+```{r}
+vaccine_brand <- vaccine_us_new%>%
+  mutate(population = people_vaccinated/ pct_vaccinated * 100,
+         pct_janssen = janssen_admin/population * 100,
+         pct_moderna = moderna_admin/population * 100,
+         pct_pfizer = pfizer_admin/population * 100)%>%
+  gather(key = "brand", value = "percent", pct_pfizer, pct_janssen, pct_moderna)%>%
+  mutate(brand = if_else(brand == "pct_janssen", "Janssen",
+                        if_else(brand == "pct_moderna", "Moderna", "Pfizer")))
+
+#join with the us state dataset for the plot
+us_states <- map_data("state")
+us_states <- left_join(us_states, vaccine_brand, by=c("region" = "state"))
+
+ggplot(data = filter(us_states, brand == "Pfizer"),
+            aes(x = long, y = lat,
+                group = group, fill = percent))+
+  geom_polygon(color = "gray90", size = 0.1) +
+    coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
+  labs(title=paste0("Vaccination Stuatus in the U.S. By ", "Pfizer"),
         x =" ", y = " ")
 ```
 
