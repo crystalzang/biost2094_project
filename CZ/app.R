@@ -131,9 +131,9 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           img(src = "logo.jpeg",height = 130, width=250)),
                  tabPanel(title = "Worldwide Vaccine Progress"),
                  tabPanel(title = "Vaccine Progress Map"),
-                 tabPanel(title = "US Vaccine Progress",
-
-                    sidebarLayout(
+                 navbarMenu(title = "US Vaccine Progress",
+                    tabPanel(title = "US Vaccine Progress",
+                        sidebarLayout(
                           sidebarPanel(
 
                               # Options to select population
@@ -151,23 +151,36 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                                           "Fully vaccinated" = "Fully Vaccinated"),
                                            selected = "At Least One Dose"),
 
-                              # Options to select vaccine brand
-                              radioButtons("vbrand",
-                                           label = h3("Vaccine Brand"),
-                                           choices = list("Pfizer" = "Pfizer",
-                                                          "Moderna" = "Moderna",
-                                                          "Janssen" = "Janssen"),
-                                           selected = "Pfizer")
                           ),
                           mainPanel(
                             "Data is from",
                             tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
-                            plotOutput("us_vaccine_plot"),
-
-                            plotOutput("us_vaccine_plot2")
+                            plotOutput("us_vaccine_plot")
                           )
                           )
                           ),
+                    tabPanel(title = "US Vaccine Brand Progress",
+                             sidebarLayout(
+                               sidebarPanel(
+                                 # Options to select vaccine brand
+                                 radioButtons("vbrand",
+                                              label = h3("Vaccine Brand"),
+                                              choices = list("Pfizer" = "Pfizer",
+                                                             "Moderna" = "Moderna",
+                                                             "Janssen" = "Janssen"),
+                                              selected = "Pfizer")
+                               ),
+                               mainPanel(
+                                 "Data is from",
+                                 tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
+
+                                 plotOutput("us_vaccine_plot2")
+                               )
+                             )
+
+                    )
+                    ),
+
                  tabPanel(title = "Reaching Herd Immunity")
 )
 
