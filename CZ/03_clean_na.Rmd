@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+# Try
 ```{r}
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
 
@@ -109,6 +110,7 @@ na.fill(z, list(0, NA, "extend"))
 
 ```
 
+# Finalized code
 ```{r}
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
 
