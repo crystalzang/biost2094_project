@@ -11,8 +11,84 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Finalized code
+```{r}
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "zoo")) {library(pkg, character.only = TRUE)}
 
-# Try
+vaccine <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+coronavirus_summary <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/coronavirus_summary.csv")
+
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+covronavirus <- coronavirus_summary %>% select(-country)
+combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
+
+
+combine$date <- as.Date(combine$date,"%m/%d/%Y")
+
+combine <-combine %>%
+  select(country,date, population, daily_vaccinations,continent)%>%
+  group_by(country)%>%
+  arrange(date)%>%
+  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
+  group_by(country)%>%
+  mutate(sum = cumsum(daily_vaccinations))
+
+#countries that doesn't have any people_vaccinated
+countries_0 <- combine%>%
+  group_by(country)%>%
+  summarize(total_vaccinations = max(sum, na.rm=T))%>%
+  filter(total_vaccinations==0)%>%
+  pull(country)
+
+'%notin%' <- Negate('%in%')
+combine_new <- combine%>%
+  select(country, date, daily_vaccinations,population,continent)%>%
+  filter(country %notin% countries_0)
+#if values are 0, fill in as na
+combine_new$daily_vaccinations <-na_if(combine_new$daily_vaccinations,0)
+
+country_info <- combine_new%>%
+  select(country, population,continent)%>%
+  distinct()
+
+combine_new <- combine_new%>%
+  select(-population, -continent)
+
+combine_new_spread <- combine_new%>%
+  spread(key = date, value =daily_vaccinations)%>%
+  column_to_rownames("country")
+
+s <- apply(combine_new_spread, 2, function(x) na.fill(x, list(0, "extend", "extend")))
+s <- as.data.frame(s)
+s <- s%>%
+  rownames_to_column("country")
+
+vaccine_final <- gather(s, key = "date", value = "daily_people_vaccinated",-country)
+vaccine_final <- left_join(vaccine_final, country_info, by = "country")
+vaccine_final <- vaccine_final%>%
+  group_by(country)%>%
+  mutate(total_vaccine = cumsum(daily_people_vaccinated))
+
+vaccine_final$date <- as.Date(vaccine_final$date,"%Y-%m-%d")
+
+#united states
+ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_vaccine)) + 
+  geom_line()  +
+  geom_point(size = 0.5)+
+  aes(colour = country) + 
+  theme(legend.position = "right") +
+  labs(title = "")
+
+#color by country
+ggplot(data = vaccine_final, aes(x = date, y = total_vaccine)) + geom_line()  + 
+  aes(colour = country) + 
+  theme(legend.position = "right") + labs(title = "")
+```
+
+
+# Experimental code
 ```{r}
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
 
@@ -108,72 +184,5 @@ na.fill(z, c("extend", NA))
 na.fill(z, -(1:3))
 na.fill(z, list(0, NA, "extend"))
 
-```
-
-# Finalized code
-```{r}
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
-
-vaccine <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccinations.csv")
-name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
-coronavirus_summary <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/coronavirus_summary.csv")
-
-coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
-covronavirus <- coronavirus_summary %>% select(-country)
-combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
-head(combine)
-
-combine$date <- as.Date(combine$date,"%m/%d/%Y")
-combine_new <-combine %>%
-  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,total_vaccinations_per_hundred, population, daily_vaccinations)%>%
-  group_by(country)%>%
-  arrange(date)%>%
-  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
-  group_by(country)%>%
-  mutate(sum = cumsum(daily_vaccinations))%>%
-  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,daily_vaccinations, sum)
-
-#countries that doesn't have any people_vaccinated
-countries_0 <- combine_new%>%
-  group_by(country)%>%
-  summarize(total_vaccinations = max(sum, na.rm=T))%>%
-  filter(total_vaccinations==0)%>%
-  pull(country)
-
-'%notin%' <- Negate('%in%')
-df <- combine_new%>%
-  select(country, date, daily_vaccinations)%>%
-  filter(country %notin% countries_0)
-df$daily_vaccinations <-na_if(df$daily_vaccinations,0)
-
-df <- df%>%
-  spread(key = date, value =daily_vaccinations)%>%
-  column_to_rownames("country")
-library(zoo)
-s <- apply(df, 2, function(x) na.fill(x, list(0, "extend", "extend")))
-s <- as.data.frame(s)
-s <- s%>%
-  rownames_to_column("country")
-vaccine_final <- gather(s, key = "date", value = "daily_people_vaccinated",-country)
-
-
-vaccine_final$date <- as.Date(vaccine_final$date,"%Y-%m-%d")
-
-vaccine_final <- vaccine_final%>%
-  group_by(country)%>%
-  mutate(total_vaccine = cumsum(daily_people_vaccinated))
-
-#mplot(vaccine_final)
-ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_vaccine)) + 
-  geom_line()  +
-  aes(colour = country) + 
-  theme(legend.position = "right") +
-  labs(title = "")
-
-
-ggplot(data = vaccine_final, aes(x = date, y = total_vaccine)) + geom_line()  + 
-  aes(colour = country) + 
-  theme(legend.position = "right") + labs(title = "")
 ```
 
