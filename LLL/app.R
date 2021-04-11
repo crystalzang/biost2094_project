@@ -17,6 +17,7 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran.us.r-project.org")
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
+for (pkg in c("tidyverse", "countrycode")) {library(pkg, character.only = TRUE)}
 
 #load data
 vaccine <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
@@ -52,7 +53,7 @@ combine_continent<-combine_new%>%
 library(RColorBrewer)
 library(plotly)
 cls = rep(c(brewer.pal(8,"Dark2"), brewer.pal(10, "Paired"), brewer.pal(12, "Set3"), brewer.pal(8,"Set2"), brewer.pal(9, "Set1"), brewer.pal(8, "Accent"),  brewer.pal(9, "Pastel1"),  brewer.pal(8, "Pastel2")),4)
-cls_names = c(as.character(unique(combine_new$country)), as.character(unique(combine_by_date_continent$continent)))
+cls_names = c(as.character(unique(combine_new$country)), as.character(unique(combine_continent$continent)))
 country_cols = cls[1:length(cls_names)]
 names(country_cols) = cls_names
 
