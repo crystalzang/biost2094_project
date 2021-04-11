@@ -1,0 +1,46 @@
+---
+title: "03_clean_na"
+author: "Ziwei Crystal Zang"
+date: "4/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
+
+vaccine <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+coronavirus_summary <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/coronavirus_summary.csv")
+
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+covronavirus <- coronavirus_summary %>% select(-country)
+combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
+head(combine)
+
+combine$date <- as.Date(combine$date,"%m/%d/%Y")
+combine_new <-combine %>%
+  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,total_vaccinations_per_hundred, population, daily_vaccinations)%>%
+  group_by(country)%>%
+  arrange(date)%>%
+  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
+  group_by(country)%>%
+  mutate(sum = cumsum(daily_vaccinations))%>%
+  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,daily_vaccinations, sum)
+
+
+#compare the original total count and cumulative sum daily count
+combine_new_summarize1 <- combine_new%>%
+  group_by(country)%>%
+  summarize(total_vaccinations1=max(total_vaccinations,na.rm=T),
+            total_vaccinations2 = max(sum, na.rm=T))%>%
+  mutate(diff = total_vaccinations1- total_vaccinations2)
+
+
+```
+
