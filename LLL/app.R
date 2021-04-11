@@ -18,6 +18,104 @@ if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
 
+#load data
+vaccine <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+coronavirus_summary <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/coronavirus_summary.csv")
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+covronavirus <- coronavirus_summary %>% select(-country)
+#merge data
+combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
+combine_new <-combine %>%
+  select(country,continent,date,people_fully_vaccinated,people_fully_vaccinated_per_hundred,
+         people_vaccinated,people_vaccinated_per_hundred,
+         daily_vaccinations, daily_vaccinations_per_million)
+combine_new<-combine_new[!is.na(combine_new$continent),]
+combine_new['daily_vaccinations_per_hundred'] <- combine_new$daily_vaccinations_per_million * 10000
+#define time stamp
+min_date <- min(combine_new$date)
+current_date = as.Date(max(combine_new$date),"%Y-%m-%d")
+#aggregate by continent
+combine_continent<-combine_new%>%
+  select(country,continent,date,people_fully_vaccinated,people_fully_vaccinated_per_hundred,
+         people_vaccinated,people_vaccinated_per_hundred,
+         daily_vaccinations, daily_vaccinations_per_hundred)%>%
+  group_by(date,continent)%>%
+  summarise(people_fully_vaccinated = sum(people_fully_vaccinated),
+            people_fully_vaccinated_per_hundred = sum(people_fully_vaccinated_per_hundred),
+            people_vaccinated=sum(people_vaccinated),
+            daily_vaccinations=sum(daily_vaccinations),
+            daily_vaccinations_per_hundred=sum(daily_vaccinations_per_hundred),
+            people_vaccinated_per_hundred=sum(people_vaccinated_per_hundred))
+# assign colours to countries to ensure consistency between plots
+library(RColorBrewer)
+library(plotly)
+cls = rep(c(brewer.pal(8,"Dark2"), brewer.pal(10, "Paired"), brewer.pal(12, "Set3"), brewer.pal(8,"Set2"), brewer.pal(9, "Set1"), brewer.pal(8, "Accent"),  brewer.pal(9, "Pastel1"),  brewer.pal(8, "Pastel2")),4)
+cls_names = c(as.character(unique(combine_new$country)), as.character(unique(combine_by_date_continent$continent)))
+country_cols = cls[1:length(cls_names)]
+names(country_cols) = cls_names
+
+
+# function to plot cumulative vaccines by region
+cumulative_vaccinated_plot <- function(combine_new,  plot_start_date) {
+  g = ggplot(
+    combine_new, aes(
+      x = date,
+      y = outcome,
+      color = region,
+      group=1,
+      text = paste0(
+        format(date, "%d %B %Y"),
+        "\n",
+        region,
+        ": ",
+        outcome
+      )
+    ) ) +
+    xlim(plot_start_date,current_date+5) +
+    xlab("Date") +
+    geom_line() +
+    geom_point()+
+    scale_colour_manual(values=country_cols) +
+    theme(legend.position = "none")+
+    theme(
+      legend.title = element_blank(),
+      legend.position = "",
+      plot.title = element_text(size=10)
+    )
+
+  ggplotly(g, tooltip = c("text")) %>% layout(legend = list(font = list(size=11)))
+}
+# function to plot new vaccines by region
+current_date = as.Date(max(combine_new$date),"%Y-%m-%d")
+daily_vaccines_plot <- function(combine_new,  plot_start_date) {
+  g = ggplot(
+    combine_new, aes(
+      x = date,
+      y = daily_outcome,
+      fill = region,
+      text = paste0(
+        format(date, "%d %B %Y"),
+        "\n",
+        region,
+        ": ",
+        daily_outcome
+      )
+    )
+  ) +
+    xlim(plot_start_date,current_date+5) +
+    xlab("Date") +
+    geom_bar(position="stack", stat="identity") +
+    ylab("New (Dayly)") +
+    #scale_fill_manual(values=combine_new$country) +
+    theme(
+      legend.title = element_blank(),
+      legend.position = "",
+      plot.title = element_text(size=10))
+  ggplotly(g, tooltip = c("text")) %>% layout(legend = list(font = list(size=11)))
+}
+
 ui <- navbarPage(title = "COVID-19 Vaccine",
     # First Page
             tabPanel(title = "About the site",
@@ -45,7 +143,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                   br(),
                   "Crystal Zang",
                   br(),
-                  "Liling Liu",
+                  "Liling Lu",
                   br(),
                   "Alexis Cenname",
                   br(),
@@ -56,15 +154,114 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                   br(),
                   br(),
                   img(src = "logo.jpeg",height = 130, width=250 )),
-             tabPanel(title = "Worldwide Vaccine Progress"),
              tabPanel(title = "Vaccine Progress Map"),
              tabPanel(title = "US Vaccine Progress"),
-             tabPanel(title = "Reaching Herd Immunity")
+             tabPanel(title = "Reaching Herd Immunity"),
+             tabPanel(title = "Worldwide Vaccine Progress",
+                      sidebarLayout(
+                        sidebarPanel(
+                          #span(tags$i(h6("Reported cases are subject to significant variation in testing policy and capacity between countries.")), style="color:#045a8d"),
+
+                          #span(tags$i(h6("Occasional anomalies (e.g. spikes in daily case counts) are generally caused by changes in case definitions.")), style="color:#045a8d"),
+
+                          pickerInput("level_select", "Level:",
+                                      choices = c("Continent", "Country"),
+                                      selected = c("Country"),
+                                      multiple = FALSE),
+
+                          pickerInput("region_select", "Country/Region:",
+                                      choices = as.character(unique(combine_new$country)),
+                                      options = list(`actions-box` = TRUE, `none-selected-text` = "Please make a selection!"),
+                                      selected = as.character(unique(combine_new$country))[1:10],
+                                      multiple = TRUE),
+
+                          pickerInput("outcome_select", "Outcome:",
+                                      choices = c("vaccines(total)", "vaccines(per hundred)","fully_vaccinated(total)","fully_vaccinated(per hundred)"),
+                                      selected = c("vaccines(total)"),
+                                      multiple = FALSE),
+
+                          sliderInput("minimum_date",
+                                      "Minimum date:",
+                                      min = as.Date(min_date,"%Y-%m-%d"),
+                                      max = as.Date(current_date,"%Y-%m-%d"),
+                                      value=as.Date(min_date),
+                                      timeFormat="%d %b"),
+
+                        ),
+
+                        mainPanel(
+                          tabsetPanel(
+                            tabPanel("Cumulative", plotlyOutput("cumulative_plot")),
+                            tabPanel("Daily", plotlyOutput("daily_plot"))
+                          )
+                        )
+                      )
+             )
   )
 
 
-# Define server logic ----
-server <- function(input, output) {}
+# Define server ----
+server <- function(input, output, session) {
+  # Update region selections
+  observeEvent(input$level_select,{
+    if (input$level_select=="Country") {
+      updatePickerInput(session = session, inputId = "region_select",
+                        choices = as.character(unique(combine_new$country)),
+                        selected = as.character(unique(combine_new$country)))
+      print("Country")
+    }
+
+    if (input$level_select=="Continent") {
+      updatePickerInput(session = session, inputId = "region_select",
+                        choices = c("Africa", "Asia", "Europe", "North America", "South America"),
+                        selected = c("Africa", "Asia", "Europe", "North America", "South America"))
+      print("Continent")
+    }
+  }, ignoreInit = TRUE)
+
+  # create dataframe with selected countries or continents
+  country_reactive_db = reactive({
+    if (input$level_select=="Country") {
+      db = combine_new
+      db$region = db$country
+    }
+    if (input$level_select=="Continent") {
+      db = combine_continent
+      db$region = db$continent
+    }
+
+    if (input$outcome_select=="vaccines(total)") {
+      db$outcome = db$people_vaccinated
+      db$daily_outcome = db$daily_vaccinations
+    }
+
+    if (input$outcome_select=="vaccines(per hundred)") {
+      db$outcome = db$people_vaccinated_per_hundred
+      db$daily_outcome = db$daily_vaccinations_per_hundred
+    }
+
+   if (input$outcome_select=="fully_vaccinated(total)") {
+     db$outcome = db$people_fully_vaccinated
+   }
+
+   if (input$outcome_select=="fully_vaccinated(per hundred)") {
+     db$outcome = db$people_fully_vaccinated_per_hundred
+   }
+    print(head(db))
+    db %>% filter(region %in% input$region_select)
+  })
+
+  # cumulative vaccine plots
+  output$cumulative_plot <- renderPlotly({
+    cumulative_vaccinated_plot(country_reactive_db(), input$minimum_date)
+  })
+
+  # daily vaccine plots
+  output$daily_plot <- renderPlotly({
+    daily_vaccines_plot(country_reactive_db(), input$minimum_date)
+  })
+
+}
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
