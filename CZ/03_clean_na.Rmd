@@ -148,20 +148,30 @@ df$daily_vaccinations <-na_if(df$daily_vaccinations,0)
 df <- df%>%
   spread(key = date, value =daily_vaccinations)%>%
   column_to_rownames("country")
-
+library(zoo)
 s <- apply(df, 2, function(x) na.fill(x, list(0, "extend", "extend")))
 s <- as.data.frame(s)
 s <- s%>%
   rownames_to_column("country")
-vaccine_final <- gather(s, key = "date", value = "total_people_vaccinated",-country)
+vaccine_final <- gather(s, key = "date", value = "daily_people_vaccinated",-country)
 
-library(mosaic)
-vaccine_final$date <- as.Date(vaccine_final$date,"%Y/%m/%d")
 
-ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_people_vaccinated)) + 
+vaccine_final$date <- as.Date(vaccine_final$date,"%Y-%m-%d")
+
+vaccine_final <- vaccine_final%>%
+  group_by(country)%>%
+  mutate(total_vaccine = cumsum(daily_people_vaccinated))
+
+#mplot(vaccine_final)
+ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_vaccine)) + 
   geom_line()  +
   aes(colour = country) + 
   theme(legend.position = "right") +
   labs(title = "")
+
+
+ggplot(data = vaccine_final, aes(x = date, y = total_vaccine)) + geom_line()  + 
+  aes(colour = country) + 
+  theme(legend.position = "right") + labs(title = "")
 ```
 
