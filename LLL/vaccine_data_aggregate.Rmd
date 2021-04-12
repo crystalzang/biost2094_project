@@ -17,12 +17,13 @@ for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, chara
 # Load data
 
 ```{r}
-vaccine <- read_csv("data/vaccinations.csv")
-#name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-#vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+vaccine <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
 ```
+
 ```{r}
-coronavirus_summary <- read_csv("data/coronavirus_summary.csv")
+coronavirus_summary <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/coronavirus_summary.csv")
 coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
 ```
 ## Countries in the vaccine data not in summary data
