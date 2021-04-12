@@ -69,9 +69,11 @@ vaccine_final <- gather(s, key = "date", value = "daily_people_vaccinated",-coun
 vaccine_final <- left_join(vaccine_final, country_info, by = "country")
 vaccine_final <- vaccine_final%>%
   group_by(country)%>%
-  mutate(total_vaccine = cumsum(daily_people_vaccinated))
+  mutate(total_vaccine = cumsum(daily_people_vaccinated))%>%
+  mutate(total_vaccine_per_pop = total_vaccine/population*100)
 
 vaccine_final$date <- as.Date(vaccine_final$date,"%Y-%m-%d")
+
 
 #united states
 ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_vaccine)) + 
@@ -87,6 +89,44 @@ ggplot(data = vaccine_final, aes(x = date, y = total_vaccine)) + geom_line()  +
   theme(legend.position = "right") + labs(title = "")
 ```
 
+```{r}
+combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
+
+
+combine$date <- as.Date(combine$date,"%m/%d/%Y")
+
+combine <-combine %>%
+  select(country,date, population, daily_vaccinations,continent,people_vaccinated)%>%
+  group_by(country)%>%
+  arrange(date)%>%
+  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
+  group_by(country)%>%
+  mutate(sum = cumsum(daily_vaccinations))
+
+combine_new <- combine%>%
+  select(country, date, people_vaccinated,population,continent)%>%
+  filter(country %notin% countries_0)
+#if values are 0, fill in as na
+combine_new$people_vaccinated <-na_if(combine_new$people_vaccinated,0)
+
+country_info <- combine_new%>%
+  select(country, population,continent)%>%
+  distinct()
+
+combine_new <- combine_new%>%
+  select(-population, -continent)
+
+combine_new_spread <- combine_new%>%
+  spread(key = date, value =people_vaccinated)%>%
+  column_to_rownames("country")
+
+s <- apply(combine_new_spread, 2, function(x) na.fill(x, list(0, "extend", "extend")))
+s <- as.data.frame(s)
+s <- s%>%
+  rownames_to_column("country")
+
+vaccine_final <- gather(s, key = "date", value = "daily_people_vaccinated",-country)
+```
 
 # Experimental code
 ```{r}
@@ -120,11 +160,16 @@ check <- combine_new%>%
   summarize(sum(is_na))
   
 #compare the original total count and cumulative sum daily count
-# combine_new_summarize1 <- combine_new%>%
-#   group_by(country)%>%
-#   summarize(total_vaccinations1=max(total_vaccinations,na.rm=T),
-#             total_vaccinations2 = max(sum, na.rm=T))%>%
-#   mutate(diff = total_vaccinations1- total_vaccinations2)
+combine_new_summarize <- combine_new%>%
+  group_by(country)%>%
+  summarize(total_doses=max(total_vaccinations,na.rm=T),
+            total_doses_na = sum(is.na(total_vaccinations)),
+            total_doses_imputed = max(sum, na.rm=T),
+             total_doses_imputed_na = sum(is.na(sum)),
+            people_vaccination = max(people_vaccinated, na.rm=T),
+                 people_vaccination_na = sum(is.na(people_vaccinated)),
+            total_vaccination_fully = max(people_fully_vaccinated,na.rm=T),
+                  total_vaccination_fully_na = sum(is.na(people_fully_vaccinated)))
 
 # combine_new_fix <- combine_new%>%
 #   select(country, date,people_vaccinated)%>%
