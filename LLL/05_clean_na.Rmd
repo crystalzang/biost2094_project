@@ -121,7 +121,12 @@ clean <- merge(people_fully_fill, people_fill, by = c('country', 'date'))
 ```
 
 ```{r}
-clean <- clean %>% select(-people_vaccinated.y)
+colnames(clean)
+```
+
+
+```{r}
+clean <- clean %>% select(-c(people_vaccinated.y,people_fully_vaccinated.y,people_fully_vaccinated.x,people_fully_vaccinated_1))
 names(clean)[names(clean) ==  "people_vaccinated.x" ] <- "people_vaccinated"
 ```
 
@@ -130,6 +135,11 @@ clean['people_fully_vaccinated_per_million'] <- (clean$people_fully_vaccinated/c
 clean['people_vaccinated_per_million'] <- (clean$people_vaccinated/clean$population)*1000000
 clean['daily_vaccinated_per_million'] <- (clean$daily_vaccinations/clean$population)*1000000
 ```
+
+```{r}
+apply(clean, 2, function(x) sum(is.na(x)))
+```
+
 
 ```{r}
 write.csv(clean, "data/clean.csv", row.names = F)
