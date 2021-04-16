@@ -21,6 +21,8 @@ if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.u
 #new
 if(!require(janitor)) install.packages("janitor", repos = "http://cran.us.r-project.org")
 if(!require(tidyr)) install.packages("tidyr", repos = "http://cran.us.r-project.org")
+if(!require(Hmisc)) install.packages("Hmisc", repos = "http://cran.us.r-project.org")
+
 
 
 vaccine_us <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccine_us.csv")
@@ -75,6 +77,7 @@ vaccine_us_long <- vaccine_us_new%>%
 #join with the us state dataset for the plot
 us_states <- map_data("state")
 us_states_vaccine <- left_join(us_states, vaccine_us_long, by=c("region" = "state"))
+us_states_vaccine$region <-  capitalize(us_states_vaccine$region)
 
 
 
@@ -90,6 +93,7 @@ vaccine_brand <- vaccine_us_new%>%
 #join with the us state dataset for the plot
 us_states <- map_data("state")
 us_states_brand <- left_join(us_states, vaccine_brand, by=c("region" = "state"))
+us_states_vaccine$region <-  capitalize(us_states_vaccine$region)
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  # First Page
@@ -189,25 +193,36 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 server <- function(input, output) {
   output$us_vaccine_plot <- renderPlot({
 
-    ggplot(data = filter(us_states_vaccine, population == input$pop, status == input$vstatus),
+    plot1 <- ggplot(data = filter(us_states_vaccine, population == input$pop, status == input$vstatus),
     aes(x = long, y = lat,
-        group = group, fill = percent))+
+        group = group, fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated")))+
     geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
-    labs(title=paste0("Vaccination Stuatus in the U.S. Among ", input$pop, " Who Had ", input$vstatus),
+    labs(title=paste0("Vaccination Status in the U.S. Among ", input$pop, " Who Had ", input$vstatus),
          x =" ", y = " ")+
-      theme_void()
+      theme_void()+
+      scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824", midpoint = 50,
+                           limits=c(0, 100), breaks=seq(0,100,by=20))
+
+   ggplotly(plot1, tooltip = "text") %>%
+       layout(legend = list(font = list(size=11)))
+
   })
 
   output$us_vaccine_plot2 <- renderPlot({
-    ggplot(data = filter(us_states_brand, brand == input$vbrand),
+    plot2 <- ggplot(data = filter(us_states_brand, brand == input$vbrand),
            aes(x = long, y = lat,
-               group = group, fill = percent))+
+               group = group, fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated with ",  input$vbrand)))+
       geom_polygon(color = "gray90", size = 0.1) +
       coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
-      labs(title=paste0("Vaccination Stuatus in the U.S. By ", input$vbrand),
+      labs(title=paste0("Vaccination Status in the U.S. By ", input$vbrand),
            x =" ", y = " ")+
-      theme_void()
+      theme_void()+
+      scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824",
+                           midpoint = 50,limits=c(0, 80), breaks=seq(0,80,by=20))
+
+    ggplotly(plot2, tooltip = c("text")) %>%
+      layout(legend = list(font = list(size=11)))
 
   })
 
