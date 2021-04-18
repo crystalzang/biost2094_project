@@ -17,10 +17,10 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran.us.r-project.org")
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(countrycode)) install.packages("countrycode", repos = "http://cran.us.r-project.org")
 
-rm(list = ls())
 
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
 
 coronavirus_summary <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_summary.csv")
 coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
@@ -31,6 +31,54 @@ vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GB
 combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
 coronavirus_daily <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_daily.csv")
 vac_daily <- merge(coronavirus_daily, vaccine, by=c("country", "date"))
+
+vaccine_us <- read_csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/vaccine_us.csv")
+vaccine_us <- vaccine_us%>%
+  clean_names()
+
+vaccine_us_new <- vaccine_us%>%
+  select(state_territory_federal_entity,
+         percent_of_total_pop_with_at_least_one_dose_by_state_of_residence,
+         percent_of_total_pop_fully_vaccinated_by_state_of_residence,
+         percent_of_65_pop_with_at_least_one_dose_by_state_of_residence,
+         percent_of_65_pop_fully_vaccinated_by_state_of_residence,
+         percent_of_18_pop_with_at_least_one_dose_by_state_of_residence, percent_of_18_pop_fully_vaccinated_by_state_of_residence, total_number_of_pfizer_doses_delivered, total_number_of_pfizer_doses_adminstered, total_number_of_janssen_doses_delivered, total_number_of_janssen_doses_administered,
+         total_number_of_moderna_doses_delivered,
+         total_number_of_moderna_doses_administered)%>%
+  rename("state" = "state_territory_federal_entity",
+         "pct_vaccinated" = "percent_of_total_pop_with_at_least_one_dose_by_state_of_residence",
+         "pct_fully_vaccinated" = "percent_of_total_pop_fully_vaccinated_by_state_of_residence",
+         "pct_65_vaccinated" = "percent_of_65_pop_with_at_least_one_dose_by_state_of_residence",
+         "pct_65_fully_vaccinated"= "percent_of_65_pop_fully_vaccinated_by_state_of_residence",
+         "pct_18_vaccinated" = "percent_of_18_pop_with_at_least_one_dose_by_state_of_residence",
+         "pct_18_fully_vaccinated"= "percent_of_18_pop_fully_vaccinated_by_state_of_residence",
+         "pfizer_deliver" = "total_number_of_pfizer_doses_delivered",
+         "pfizer_admin"= "total_number_of_pfizer_doses_adminstered",
+         "janssen_deliver" = "total_number_of_janssen_doses_delivered",
+         "janssen_admin" = "total_number_of_janssen_doses_administered",
+         "moderna_deliver" = "total_number_of_moderna_doses_delivered",
+         "moderna_admin" = "total_number_of_moderna_doses_administered"
+  )%>%
+  mutate(janssen_pct_admin = (janssen_deliver-janssen_admin)/janssen_deliver,
+         pfizer_pct_admin = (pfizer_deliver - pfizer_admin)/pfizer_deliver ,
+         moderna_pct_admin =  (moderna_deliver-moderna_admin)/moderna_deliver)
+
+vaccine_us_new <- apply(vaccine_us_new, 2, as.numeric)
+vaccine_us_new <- as.data.frame(vaccine_us_new)
+vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
+vaccine_us_new$state <-  tolower(vaccine_us_new$state)
+
+vaccine_us_long <- vaccine_us_new%>%
+  gather(key ="population" , value="percent_vaccinated", pct_vaccinated, pct_65_vaccinated, pct_18_vaccinated )%>%
+  mutate(population = if_else(population == "pct_18_vaccinated", "18+",
+                              if_else(population == "pct_65_vaccinated","65+",
+                                      "all")))
+
+#join with the us state dataset for the plot
+us_states <- map_data("state")
+us_states <- left_join(us_states, vaccine_us_long, by=c("region" = "state"))
+
+
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  # First Page
@@ -72,7 +120,27 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           img(src = "logo.jpeg",height = 130, width=250)),
                  tabPanel(title = "Worldwide Vaccine Progress"),
                  tabPanel(title = "Vaccine Progress Map"),
-                 tabPanel(title = "US Vaccine Progress"),
+                 tabPanel(title = "US Vaccine Progress",
+
+                          sidebarLayout(
+                            sidebarPanel(
+
+                              # Options to select population
+                              radioButtons("pop",
+                                           label = h3("Population"),
+                                           choices = list("Total population" = "all",
+                                                          "18+" = "18+",
+                                                          "65+" = "65+"),
+                                           selected = "all")
+                            ),
+                            mainPanel(
+                              "Data is from",
+                              tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
+                              plotOutput("plot")
+
+                            )
+                          )
+                 ),
                  tabPanel(title = "Reaching Herd Immunity",
                           sidebarLayout(
                             sidebarPanel(
@@ -86,31 +154,41 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           )
                  ))
 
+# Define server logic ----
 server <- function(input, output) {
 
-  output$countryplot <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
-                                            drop_na(active_cases),
-                                          aes(date, active_cases))
-                                   + geom_point(color="red", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                     theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                           axis.title.x = element_blank()) +
-                                     labs(title = as.character(input$countrylist), y = "Active Cases"))
-  output$countryplot2 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
-                                             drop_na(daily_vaccinations),
-                                           aes(date, daily_vaccinations))
-                                    + geom_point(color="green", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                      theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                            axis.title.x = element_blank()) +
-                                      labs(y = "Daily Vaccinations"))
-  output$countryplot3 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
-                                             drop_na(total_vaccinations),
-                                           aes(date, total_vaccinations))
-                                    + geom_point(color="purple", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                      theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                            axis.title.x = element_blank()) +
-                                      labs(y = "Total Vaccinations")
-  )
-}
+  output$plot <- renderPlot(ggplot(data = filter(us_states, population == input$pop),
+           aes(x = long, y = lat,
+               group = group, fill = pfizer_pct_admin))+
+      geom_polygon(color = "gray90", size = 0.1) +
+      coord_map(projection = "albers", lat0 = 39, lat1 = 45))
+
+    output$countryplot <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
+                                              drop_na(active_cases),
+                                            aes(date, active_cases))
+                                     + geom_point(color="red", size=5) + geom_line(group=1, color="black") + theme_bw() +
+                                       theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
+                                             axis.title.x = element_blank()) +
+                                       labs(title = as.character(input$countrylist), y = "Active Cases"))
+    output$countryplot2 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
+                                               drop_na(daily_vaccinations),
+                                             aes(date, daily_vaccinations))
+                                      + geom_point(color="green", size=5) + geom_line(group=1, color="black") + theme_bw() +
+                                        theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
+                                              axis.title.x = element_blank()) +
+                                        labs(y = "Daily Vaccinations"))
+    output$countryplot3 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
+                                               drop_na(total_vaccinations),
+                                             aes(date, total_vaccinations))
+                                      + geom_point(color="purple", size=5) + geom_line(group=1, color="black") + theme_bw() +
+                                        theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
+                                              axis.title.x = element_blank()) +
+                                        labs(y = "Total Vaccinations"))}
+
+
+
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
+
+
