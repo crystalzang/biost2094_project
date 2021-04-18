@@ -64,37 +64,118 @@ vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
 vaccine_us_new$state <-  tolower(vaccine_us_new$state)
 
 vaccine_us_long <- vaccine_us_new%>%
+  #gather by age group percent
   gather(key ="population" , value="percent_vaccinated", pct_vaccinated, pct_65_vaccinated, pct_18_vaccinated )%>%
   mutate(population = if_else(population == "pct_18_vaccinated", "18+",
                               if_else(population == "pct_65_vaccinated","65+",
-                                      "All")))%>%
+                                      "all")))%>%
+  #gather by fully/partial status percent
   gather(key ="population2" , value="percent_fully_vaccinated", pct_fully_vaccinated, pct_65_fully_vaccinated, pct_18_fully_vaccinated )%>%
   select(-population2)%>%
+  #gather overall percent
   gather(key = "status", value = "percent", percent_vaccinated, percent_fully_vaccinated)%>%
-  mutate(status = if_else(status == "percent_fully_vaccinated", "Fully Vaccinated", "At Least One Dose"))
+  mutate(status = if_else(status == "percent_fully_vaccinated", "fully vaccinated", "at least one dose"))
+
+#1. at least one dose, all
+df1 <- filter(vaccine_us_long, status == "at least one dose", population == "all")
+pct_vaccinated_q <- quantile(df1$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+df1  <- df1%>%
+  mutate(pct_vaccinated_q = if_else(percent < pct_vaccinated_q[2], "[15%,29%)",
+                                    if_else(percent < pct_vaccinated_q[3], "[29%,33%)",
+                                            if_else(percent < pct_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
+  rename("percent_q" = "pct_vaccinated_q")
+
+#1.5. fully, all
+df1.5 <- filter(vaccine_us_long, status == "fully vaccinated", population == "all")
+pct_fully_vaccinated_q <- quantile(df1.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+
+df1.5  <- df1.5%>%
+  mutate(pct_fully_vaccinated_q = if_else(percent < pct_fully_vaccinated_q[2], "[15%,29%)",
+                                          if_else(percent < pct_fully_vaccinated_q[3], "[29%,33%)",
+                                                  if_else(percent < pct_fully_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
+  rename("percent_q" = "pct_fully_vaccinated_q")
 
 
+#2. at least one dose, 65+
+df2 <- filter(vaccine_us_long, status == "at least one dose", population == "65+")
+pct_65_vaccinated_q <- quantile(df2$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+df2 <- df2%>%
+  mutate(pct_65_vaccinated_q = if_else(percent < pct_65_vaccinated_q[2], "[15%,29%)",
+                                       if_else(percent < pct_65_vaccinated_q[3], "[29%,33%)",
+                                               if_else(percent < pct_65_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
+  rename("percent_q" = "pct_65_vaccinated_q")
+
+#2.5. fully, 65+
+df2.5 <- filter(vaccine_us_long, status == "fully vaccinated", population == "65+")
+pct_65_fully_vaccinated_q <- quantile(df2.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+df2.5 <- df2.5%>%
+  mutate(pct_65_fully_vaccinated_q = if_else(percent < pct_65_fully_vaccinated_q[2], "[15%,29%)",
+                                             if_else(percent < pct_65_fully_vaccinated_q[3], "[29%,33%)",
+                                                     if_else(percent < pct_65_fully_vaccinated_q[4], "33%,35%)", "[35%,47%)"))))%>%
+  rename("percent_q" = "pct_65_fully_vaccinated_q")
+
+#3. at least one dose, 18+
+df3 <- filter(vaccine_us_long, status == "at least one dose", population == "18+")
+pct_18_vaccinated_q <- quantile(df3$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+
+df3 <- df3%>%
+  mutate(pct_18_vaccinated_q = if_else(percent < pct_18_vaccinated_q[2], "[15%,29%)",
+                                       if_else(percent < pct_18_vaccinated_q[3], "[29%,33%)",
+                                               if_else(percent < pct_18_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
+  rename("percent_q" = "pct_18_vaccinated_q")
+
+#3.5. fully, 18+
+df3.5 <- filter(vaccine_us_long, status == "fully vaccinated", population == "18+")
+pct_18_fully_vaccinated_q <- quantile(df3.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+
+df3.5 <- df3.5%>%
+  mutate(pct_18_fully_vaccinated_q = if_else(percent < pct_18_fully_vaccinated_q[2], "[15%,29%)",
+                                             if_else(percent < pct_18_fully_vaccinated_q[3], "[29%,33%)",
+                                                     if_else(percent < pct_18_fully_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
+  rename("percent_q" = "pct_18_fully_vaccinated_q")
+
+all <- rbind(df1, df1.5, df2, df2.5, df3, df3.5)
 #join with the us state dataset for the plot
 us_states <- map_data("state")
-us_states_vaccine <- left_join(us_states, vaccine_us_long, by=c("region" = "state"))
+us_states_vaccine <- left_join(us_states, all, by=c("region" = "state"))
 us_states_vaccine$region <-  capitalize(us_states_vaccine$region)
 
 
-
+##########################################
+# vaccine brand
 vaccine_brand <- vaccine_us_new%>%
   mutate(population = people_vaccinated/ pct_vaccinated * 100,
          pct_janssen = janssen_admin/population * 100,
          pct_moderna = moderna_admin/population * 100,
-         pct_pfizer = pfizer_admin/population * 100)%>%
-  gather(key = "brand", value = "percent", pct_pfizer, pct_janssen, pct_moderna)%>%
-  mutate(brand = if_else(brand == "pct_janssen", "Janssen",
-                         if_else(brand == "pct_moderna", "Moderna", "Pfizer")))
+         pct_pfizer = pfizer_admin/population * 100)
+
+quantile_janssen <- quantile(vaccine_brand$pct_janssen, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+quantile_moderna <- quantile(vaccine_brand$pct_moderna, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+quantile_pfizer <- quantile(vaccine_brand$pct_pfizer, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+
+vaccine_brand <- vaccine_brand%>%
+  mutate(pct_janssen_q = if_else(pct_janssen < quantile_janssen[2], "[0%,1.01%)",
+                                 if_else(pct_janssen < quantile_janssen[3], "[1.01%,1.17%)",
+                                         if_else(pct_janssen < quantile_janssen[4], "[1.17%,1.34%)", "[1.34,2.34)"))))%>%
+  mutate(pct_moderna_q = if_else(pct_moderna < quantile_moderna[2], "[7.03%,20.82%)",
+                                 if_else(pct_moderna < quantile_moderna[3], "[20.82%,23.69%)",
+                                         if_else(pct_moderna < quantile_moderna[4], "[23.69%,25.90%)", "[25.90%,73.89%)"))))%>%
+  mutate(pct_pfizer_q = if_else(pct_pfizer < quantile_pfizer[2], "[0%,23.78%)",
+                                if_else(pct_pfizer < quantile_pfizer[3], "[23.78%,26.15%)",
+                                        if_else(pct_pfizer < quantile_pfizer[4], "[26.15%,28.28%)", "[28.28%,45.25%)"))))%>%
+  gather(key = "brand", value = "percent_q", pct_pfizer_q, pct_janssen_q, pct_moderna_q)%>%
+  mutate(brand = if_else(brand == "pct_janssen_q", "Janssen(J&J)",
+                         if_else(brand == "pct_moderna_q", "Moderna", "Pfizer")))%>%
+  gather(key = "brand2", value = "percent", pct_pfizer, pct_janssen, pct_moderna)%>%
+  select(-brand2)%>%
+  mutate(percent= round(percent, 2))
 
 #join with the us state dataset for the plot
 us_states <- map_data("state")
 us_states_brand <- left_join(us_states, vaccine_brand, by=c("region" = "state"))
-us_states_vaccine$region <-  capitalize(us_states_vaccine$region)
+us_states_brand$region <-  capitalize(us_states_brand$region)
 
+#########################################
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  # First Page
                  tabPanel(title = "About the site",
@@ -154,12 +235,21 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                            choices = list("At least one dose" = "At Least One Dose",
                                                           "Fully vaccinated" = "Fully Vaccinated"),
                                            selected = "At Least One Dose"),
-
+                              width=3
                           ),
                           mainPanel(
                             "Data is from",
                             tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
-                            plotOutput("us_vaccine_plot")
+                            fluidRow(
+                              column(3, offset = 9,
+
+                                     radioButtons(inputId = "display_option_p1",
+                                                  label = "Display:",
+                                                  choices = c("Actual Percent", "Quantile"),
+                                                  selected = "Actual Percent")
+                              )),
+                            plotOutput("us_vaccine_plot"),
+                            width=9
                           )
                           )
                           ),
@@ -171,14 +261,25 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                               label = h3("Vaccine Brand"),
                                               choices = list("Pfizer" = "Pfizer",
                                                              "Moderna" = "Moderna",
-                                                             "Janssen" = "Janssen"),
-                                              selected = "Pfizer")
+                                                             "Janssen(J&J)" = "Janssen(J&J)"),
+                                              selected = "Pfizer"),
+                                 width=3
                                ),
                                mainPanel(
                                  "Data is from",
                                  tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
 
-                                 plotOutput("us_vaccine_plot2")
+                                 fluidRow(
+                                   column(3, offset = 9,
+
+                                          radioButtons(inputId = "display_option",
+                                                       label = "Display:",
+                                                       choices = c("Actual Percent", "Quantile"),
+                                                       selected = "Actual Percent")
+                                   )),
+                                 plotOutput("us_vaccine_plot2"),
+                                 width=9
+
                                )
                              )
 
@@ -202,11 +303,41 @@ server <- function(input, output) {
          x =" ", y = " ")+
       theme_void()+
       scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824", midpoint = 50,
-                           limits=c(0, 100), breaks=seq(0,100,by=20))
+                           limits=c(0, 100), breaks=seq(0,100,by=20))+
+      theme(legend.title = element_text( size = 18),
+            legend.text = element_text(size = 13),
+            plot.title = element_text(size=18))+
+      labs(fill = "Percent (%)")
 
-   ggplotly(plot1, tooltip = "text") %>%
-       layout(legend = list(font = list(size=11)))
+    colour1 <- "#E5F2DF"
+    colour2 <- "#95C182"
+    colour3 <- "#519A37"
+    colour4 <- "#2D6814"
 
+    colours <- c(colour1, colour2, colour3, colour4)
+
+    plot1.quantile <- ggplot(data = filter(us_states_vaccine, population == input$pop, status == input$vstatus),
+                    aes(x = long, y = lat,
+                        group = group, fill = percent_q,  text = paste0(region,": ",  percent, "% are vaccinated")))+
+      geom_polygon(color = "gray90", size = 0.1) +
+      coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
+      labs(title=paste0("Vaccination Status in the U.S. Among ", input$pop, " Who Had ", input$vstatus),
+           x =" ", y = " ")+
+      theme_void()+
+      theme(legend.title = element_text( size = 18),
+            legend.text = element_text(size = 13),
+            plot.title = element_text(size=18))+
+      labs(fill = "Percent (%)")
+    #+
+    #  scale_fill_manual(values = colours)
+
+   # ggplotly(plot1, tooltip = "text") %>%
+   #     layout(legend = list(font = list(size=11)))
+    if (input$display_option_p1 == "Actual Percent"){
+      plot1
+    }else if (input$display_option_p1 == "Quantile") {
+      plot1.quantile
+    }
   })
 
   output$us_vaccine_plot2 <- renderPlot({
@@ -219,11 +350,41 @@ server <- function(input, output) {
            x =" ", y = " ")+
       theme_void()+
       scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824",
-                           midpoint = 50,limits=c(0, 80), breaks=seq(0,80,by=20))
+                           midpoint = 50,limits=c(0, 80), breaks=seq(0,80,by=20))+
+      theme(legend.title = element_text( size = 18),
+            legend.text = element_text(size = 13),
+            plot.title = element_text(size=18))+
+      labs(fill = "Percent (%)")
 
-    ggplotly(plot2, tooltip = c("text")) %>%
-      layout(legend = list(font = list(size=11)))
+    colour1 <- "#E5F2DF"
+    colour2 <- "#95C182"
+    colour3 <- "#519A37"
+    colour4 <- "#2D6814"
+    colours <- c(colour1, colour2, colour3, colour4)
 
+    plot2.quantile <- ggplot(data = filter(us_states_brand, brand == input$vbrand),
+                    aes(x = long, y = lat,
+                        group = group, fill = percent_q,  text = paste0(region,": ",  percent, "% are vaccinated with ",  input$vbrand)))+
+      geom_polygon(color = "gray90", size = 0.1) +
+      coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
+      labs(title=paste0("Vaccination Status in the U.S. By ", input$vbrand),
+           x =" ", y = " ")+
+      theme_void()+
+      theme(legend.title = element_text( size = 18),
+            legend.text = element_text(size = 13),
+            plot.title = element_text(size=18))+
+      labs(fill = "Percentage Quantile") +
+      scale_fill_manual(values = colours)
+
+
+
+    if (input$display_option == "Actual Percent"){
+      plot2
+    }else if (input$display_option == "Quantile") {
+      plot2.quantile
+    }
+    # ggplotly(plot2, tooltip = c("text")) %>%
+    #   layout(legend = list(font = list(size=11)))
   })
 
 
