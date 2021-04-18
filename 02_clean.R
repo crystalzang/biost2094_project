@@ -11,9 +11,11 @@ covronavirus <- coronavirus_summary %>% select(-country)
 combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
 head(combine)
 combine_new <-combine %>%
-  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,total_vaccinations_per_hundred,continent)
+  select(country,continent,date,people_fully_vaccinated,people_fully_vaccinated_per_hundred,
+         people_vaccinated,people_vaccinated_per_hundred,
+         daily_vaccinations, daily_vaccinations_per_million)
 vaccine_by_country<-combine_new%>%
-group_by(country)%>%
+  group_by(country)%>%
   filter(!is.na(total_vaccinations))%>%
   filter(total_vaccinations==max(total_vaccinations)) %>%
   slice(which.max(as.Date(date)))
