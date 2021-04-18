@@ -327,9 +327,8 @@ server <- function(input, output) {
       theme(legend.title = element_text( size = 18),
             legend.text = element_text(size = 13),
             plot.title = element_text(size=18))+
-      labs(fill = "Percent (%)")
-    #+
-    #  scale_fill_manual(values = colours)
+      labs(fill = "Percent (%)")+
+      scale_fill_manual(values = colours)
 
    # ggplotly(plot1, tooltip = "text") %>%
    #     layout(legend = list(font = list(size=11)))
@@ -343,7 +342,7 @@ server <- function(input, output) {
   output$us_vaccine_plot2 <- renderPlot({
     plot2 <- ggplot(data = filter(us_states_brand, brand == input$vbrand),
            aes(x = long, y = lat,
-               group = group, fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated with ",  input$vbrand)))+
+               fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated with ",  input$vbrand)))+
       geom_polygon(color = "gray90", size = 0.1) +
       coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
       labs(title=paste0("Vaccination Status in the U.S. By ", input$vbrand),
@@ -364,7 +363,7 @@ server <- function(input, output) {
 
     plot2.quantile <- ggplot(data = filter(us_states_brand, brand == input$vbrand),
                     aes(x = long, y = lat,
-                        group = group, fill = percent_q,  text = paste0(region,": ",  percent, "% are vaccinated with ",  input$vbrand)))+
+                         fill = percent_q,  text = paste0(region,": ",  percent, "% are vaccinated with ",  input$vbrand)))+
       geom_polygon(color = "gray90", size = 0.1) +
       coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
       labs(title=paste0("Vaccination Status in the U.S. By ", input$vbrand),
