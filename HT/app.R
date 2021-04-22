@@ -18,6 +18,27 @@ if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
 
+# building the map
+
+worldcountry = geojson_read("input_data/50m.geojson", what = "sp")
+
+cv_large_countries = cv_today %>% filter(alpha3 %in% worldcountry$ADM0_A3)
+if (all(cv_large_countries$alpha3 %in% worldcountry$ADM0_A3)==FALSE) { print("Error: inconsistent country names")}
+cv_large_countries = cv_large_countries[order(cv_large_countries$alpha3),]
+
+bins = c(0,10,50,100,500,1000,Inf)
+cv_pal <- colorBin("Oranges", domain = cv_large_countries$cases_per_million, bins = bins)
+plot_map <- worldcountry[worldcountry$ADM0_A3 %in% cv_large_countries$alpha3, ]
+
+basemap = leaflet(plot_map) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  fitBounds(~-100,-60,~60,70) %>%
+  addLegend("bottomright", pal = cv_pal, values = ~cv_large_countries$deaths_per_million,
+            title = "<small>Deaths per million</small>")
+
+# Putting the map into the ui
+
 ui <- navbarPage(title = "COVID-19 Vaccine",
                    # First Page
                    tabPanel(title = "About the site",
@@ -42,14 +63,49 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                             "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
                    ),
                  tabPanel(title = "Worldwide Vaccine Progress"),
-                 tabPanel(title = "Vaccine Progress Map"),
+                 tabPanel(title = "Vaccine Progress Map",
+                          div(class="outer",
+                              tags$head(includeCSS("styles.css")),
+                              leafletOutput("mymap", width="100%", height="100%"),
+
+                              absolutePanel(id = "controls", class = "panel panel-default",
+                                            bottom = 75, left = 55, width = 400, fixed=TRUE,
+                                            draggable = TRUE, height = "auto",
+
+                                            sliderTextInput("plot_date",
+                                                            label = h5("Date"),
+                                                            choices = format(unique(cv_cases$date), "%d %b %y"),
+                                                            selected = format(current_date, "%d %b %y"),
+                                                            grid = FALSE,
+                                                            animate=animationOptions(interval = 3000, loop = FALSE))
+
+                              ),
+
+                          )
+                 ),
                  tabPanel(title = "US Vaccine Progress"),
                  tabPanel(title = "Reaching Herd Immunity")
 )
 
 
 # Define server logic ----
-server <- function(input, output) {}
+server <- function(input, output) {
+  output$mymap <- renderLeaflet({
+    basemap
+  })
+
+  observeEvent(input$plot_date, {
+  leafletProxy("mymap") %>%
+    clearMarkers() %>%
+    clearShapes() %>%
+
+    addCircleMarkers(data = reactive_db(), lat = ~ latitude, lng = ~ longitude, weight = 1, radius = ~(cases)^(1/5.5),
+                     fillOpacity = 0.1, color = covid_col, group = "2019-COVID (cumulative)",
+                     label = sprintf("<strong>%s (cumulative)</strong><br/>Confirmed cases: %g<br/>Deaths: %d<br/>Cases per million: %g<br/>Deaths per million: %g", reactive_db()$country, reactive_db()$cases, reactive_db()$deaths, reactive_db()$cases_per_million, reactive_db()$deaths_per_million) %>% lapply(htmltools::HTML),
+                     labelOptions = labelOptions(
+                       style = list("font-weight" = "normal", padding = "3px 8px", "color" = covid_col),
+                       textsize = "15px", direction = "auto")) %>%  addPolygons(data = reactive_polygons(), stroke = FALSE, smoothFactor = 0.1, fillOpacity = 0.15, fillColor = ~cv_pal(reactive_db_large()$deaths_per_million))}
+)}
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
