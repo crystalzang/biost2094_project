@@ -10,6 +10,13 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+library(readr)
+vaccinations <- read_csv("~/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
+View(vaccinations)
+library(readr)
+clean <- read_csv("data/clean.csv")
+View(clean)
 library(Hmisc)
 # Dealing with missing value
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "zoo")) {library(pkg, character.only = TRUE)}

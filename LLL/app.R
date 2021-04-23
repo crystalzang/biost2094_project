@@ -22,77 +22,19 @@ library(RColorBrewer)
 library(plotly)
 library(Hmisc)
 #load data
-vaccine <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
-name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
-coronavirus_summary <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/coronavirus_summary.csv")
-coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
-covronavirus <- coronavirus_summary %>% select(-country)
-#merge data
-combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
-combine_new <-combine %>%
-  select(country,continent,date,people_fully_vaccinated,people_fully_vaccinated_per_hundred,
-         people_vaccinated,people_vaccinated_per_hundred,
-         daily_vaccinations, daily_vaccinations_per_million,total_vaccinations)%>%
-  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))
-combine_new<-combine_new[!is.na(combine_new$continent),]
-combine_new<-combine_new %>% drop_na(total_vaccinations)
-combine_new['daily_vaccinations_per_hundred'] <- combine_new$daily_vaccinations_per_million * 10000
-#filling missing value
-#check pearson relationship
-df <- combine_new %>%
-  select(daily_vaccinations,total_vaccinations,daily_vaccinations_per_million,
-         people_vaccinated,people_vaccinated_per_hundred,people_vaccinated_per_hundred,
-         people_fully_vaccinated,people_fully_vaccinated_per_hundred,)
-rcorr(data.matrix(df))
-# fill missing value in "people_vaccinated" by linear relationship with "daily_vaccinated"
-lm1 <- lm(reformulate('daily_vaccinations', "people_vaccinated"), combine_new)$coef
-combine_new$people_vaccinated <-
-  ifelse(is.na(combine_new$people_vaccinated), lm1[1] + combine_new$daily_vaccinations*lm1[2], combine_new$people_vaccinated)
-# fill missing value in people_fully_vaccinated by subtract people_vaccinated from toatl_vaccinations
-combine_new$people_fully_vaccinated <- combine_new$total_vaccinations - combine_new$people_vaccinated
-# set negative values in people_fully_vaccinated to zero
-combine_new$people_fully_vaccinated[combine_new$people_fully_vaccinated < 0] <- 0
-# fill missing value in "people_vaccinated_per_hundred" by linear relationship with "people_vaccinated"
-lm2 <- lm(reformulate('people_vaccinated', "people_vaccinated_per_hundred"), combine_new)$coef
-combine_new$people_vaccinated_per_hundred <-
-  ifelse(is.na(combine_new$people_vaccinated_per_hundred), lm2[1] + combine_new$people_vaccinated*lm2[2], combine_new$people_vaccinated_per_hundred)
-# fill missing value in "people_fully_vaccinated_per_hundred" by linear relationship with "people_fully_vaccinated"
-lm3 <- lm(reformulate('people_fully_vaccinated', "people_fully_vaccinated_per_hundred"), combine_new)$coef
-combine_new$people_fully_vaccinated_per_hundred <-
-  ifelse(is.na(combine_new$people_fully_vaccinated_per_hundred), lm3[1] + combine_new$people_fully_vaccinated*lm3[2], combine_new$people_fully_vaccinated_per_hundred)
-# fill missing value in "daily_vaccinations_per_hundred" by linear relationship with "daily_vaccinations"
-lm4 <- lm(reformulate('daily_vaccinations', "daily_vaccinations_per_hundred"), combine_new)$coef
-combine_new$daily_vaccinations_per_hundred <-
-  ifelse(is.na(combine_new$daily_vaccinations_per_hundred), lm4[1] + combine_new$daily_vaccinations*lm4[2], combine_new$daily_vaccinations_per_hundred)
-apply(combine_new, 2, function(x) sum(is.na(x)))
-#define time stamp
-combine_new$date = as.Date(combine_new$date, "%m/%d/%Y")
-min_date <- min(combine_new$date)
-current_date = max(combine_new$date)
-
-#aggregate by continent
-combine_continent<-combine_new%>%
-  select(country,continent,date,people_fully_vaccinated,people_fully_vaccinated_per_hundred,
-         people_vaccinated,people_vaccinated_per_hundred,
-         daily_vaccinations, daily_vaccinations_per_hundred)%>%
-  group_by(date,continent)%>%
-  summarise(people_fully_vaccinated = sum(people_fully_vaccinated),
-            people_fully_vaccinated_per_hundred = sum(people_fully_vaccinated_per_hundred),
-            people_vaccinated=sum(people_vaccinated),
-            daily_vaccinations=sum(daily_vaccinations),
-            daily_vaccinations_per_hundred=sum(daily_vaccinations_per_hundred),
-            people_vaccinated_per_hundred=sum(people_vaccinated_per_hundred))
-
+combine_new <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/clean_2.csv")
+combine_continent <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/combine_continent.csv")
 # assign colours to countries to ensure consistency between plots
 cls = rep(c(brewer.pal(8,"Dark2"), brewer.pal(10, "Paired"), brewer.pal(12, "Set3"), brewer.pal(8,"Set2"), brewer.pal(9, "Set1"), brewer.pal(8, "Accent"),  brewer.pal(9, "Pastel1"),  brewer.pal(8, "Pastel2")),4)
 cls_names = c(as.character(unique(combine_new$country)), as.character(unique(combine_continent$continent)))
 country_cols = cls[1:length(cls_names)]
 names(country_cols) = cls_names
-
+##define time stamp
+#combine_new$date = as.Date(combine_new$date, "%m/%d/%Y")
+min_date <- min(combine_new$date)
+current_date = max(combine_new$date)
 # function to plot cumulative vaccines by region
 cumulative_vaccinated_plot <- function(combine_new,  plot_start_date) {
-  print(typeof(combine_new$date))
   g = ggplot(
     combine_new, aes(
       x = date,
@@ -109,6 +51,7 @@ cumulative_vaccinated_plot <- function(combine_new,  plot_start_date) {
     ) ) +
     xlim(plot_start_date, current_date + 5) +
     xlab("Date") +
+    ylab("Cumulative")+
     geom_line() +
     geom_point()+
     scale_colour_manual(values=country_cols) +
@@ -142,7 +85,7 @@ daily_vaccines_plot <- function(combine_new,  plot_start_date) {
     xlab("Date") +
     geom_bar(position="stack", stat="identity") +
     ylab("New (Dayly)") +
-    #scale_fill_manual(values=combine_new$country) +
+    scale_fill_manual(values=combine_new$country) +
     theme(
       legend.title = element_blank(),
       legend.position = "",
@@ -206,11 +149,11 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           pickerInput("region_select", "Country/Region:",
                                       choices = as.character(unique(combine_new$country)),
                                       options = list(`actions-box` = TRUE, `none-selected-text` = "Please make a selection!"),
-                                      selected = as.character(unique(combine_new$country))[1:10],
+                                      selected = c("United States","India","United Kingdom","Brazil","China","Germany","France"),
                                       multiple = TRUE),
 
                           pickerInput("outcome_select", "Outcome:",
-                                      choices = c("vaccines(total)", "vaccines(per hundred)","fully_vaccinated(total)","fully_vaccinated(per hundred)"),
+                                      choices = c("vaccines(total)", "vaccines(per million)","fully_vaccinated(total)","fully_vaccinated(per million)"),
                                       selected = c("vaccines(total)"),
                                       multiple = FALSE),
 
@@ -219,7 +162,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                       min = min_date,
                                       max = current_date,
                                       value = min_date,
-                                      timeFormat="%d %b"),
+                                      timeFormat="%d%b%y"),
                         ),
 
                         mainPanel(
@@ -239,7 +182,7 @@ server <- function(input, output, session) {
     if (input$level_select=="Country") {
       updatePickerInput(session = session, inputId = "region_select",
                         choices = as.character(unique(combine_new$country)),
-                        selected = as.character(unique(combine_new$country)))
+                        selected =  as.character(unique(combine_new$country)))
       print("Country")
     }
 
@@ -267,19 +210,21 @@ server <- function(input, output, session) {
       db$daily_outcome = db$daily_vaccinations
     }
 
-    if (input$outcome_select=="vaccines(per hundred)") {
-      db$outcome = db$people_vaccinated_per_hundred
-      db$daily_outcome = db$daily_vaccinations_per_hundred
+    if (input$outcome_select=="vaccines(per million)") {
+      db$outcome = db$people_vaccinated_per_million
+      db$daily_outcome = db$daily_vaccinated_per_million
     }
 
    if (input$outcome_select=="fully_vaccinated(total)") {
      db$outcome = db$people_fully_vaccinated
+     db$daily_outcome = db$people_fully_vaccinated
    }
 
-   if (input$outcome_select=="fully_vaccinated(per hundred)") {
-     db$outcome = db$people_fully_vaccinated_per_hundred
+   if (input$outcome_select=="fully_vaccinated(per million)") {
+     db$outcome = db$people_fully_vaccinated_per_million
+     db$daily_outcome = db$people_fully_vaccinated_per_million
    }
-    print(head(db))
+    #print(head(db))
     db %>% filter(region %in% input$region_select)
   })
 
