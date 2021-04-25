@@ -36,9 +36,20 @@ vaccine_us_new <- vaccine_us%>%
          percent_of_total_pop_fully_vaccinated_by_state_of_residence,
          percent_of_65_pop_with_at_least_one_dose_by_state_of_residence,
          percent_of_65_pop_fully_vaccinated_by_state_of_residence,
-         percent_of_18_pop_with_at_least_one_dose_by_state_of_residence, percent_of_18_pop_fully_vaccinated_by_state_of_residence, total_number_of_pfizer_doses_delivered, total_number_of_pfizer_doses_adminstered, total_number_of_janssen_doses_delivered, total_number_of_janssen_doses_administered,
+         percent_of_18_pop_with_at_least_one_dose_by_state_of_residence,
+         percent_of_18_pop_fully_vaccinated_by_state_of_residence,
+         #brand delivered/administrated
+         total_number_of_pfizer_doses_delivered,
+         total_number_of_pfizer_doses_adminstered,
+         total_number_of_janssen_doses_delivered,
+         total_number_of_janssen_doses_administered,
          total_number_of_moderna_doses_delivered,
-         total_number_of_moderna_doses_administered)%>%
+         total_number_of_moderna_doses_administered,
+         #brand fully vaccinated
+         people_fully_vaccinated_moderna_resident,
+         people_fully_vaccinated_pfizer_resident,
+         people_fully_vaccinated_janssen_resident
+         )%>%
   rename("state" = "state_territory_federal_entity",
          "people_vaccinated" = "people_with_at_least_one_dose_by_state_of_residence",
          "pct_vaccinated" = "percent_of_total_pop_with_at_least_one_dose_by_state_of_residence",
@@ -49,10 +60,13 @@ vaccine_us_new <- vaccine_us%>%
          "pct_18_fully_vaccinated"= "percent_of_18_pop_fully_vaccinated_by_state_of_residence",
          "pfizer_deliver" = "total_number_of_pfizer_doses_delivered",
          "pfizer_admin"= "total_number_of_pfizer_doses_adminstered",
+         "pfizer_fully" = "people_fully_vaccinated_pfizer_resident",
          "janssen_deliver" = "total_number_of_janssen_doses_delivered",
          "janssen_admin" = "total_number_of_janssen_doses_administered",
+         "janssen_fully" = "people_fully_vaccinated_janssen_resident",
          "moderna_deliver" = "total_number_of_moderna_doses_delivered",
-         "moderna_admin" = "total_number_of_moderna_doses_administered"
+         "moderna_admin" = "total_number_of_moderna_doses_administered",
+         "moderna_fully"  = "people_fully_vaccinated_moderna_resident"
   )%>%
   mutate( janssen_pct_admin = (janssen_deliver-janssen_admin)/janssen_deliver,
           pfizer_pct_admin = (pfizer_deliver - pfizer_admin)/pfizer_deliver ,
@@ -147,7 +161,11 @@ vaccine_brand <- vaccine_us_new%>%
   mutate(population = people_vaccinated/ pct_vaccinated * 100,
          pct_janssen = janssen_admin/population * 100,
          pct_moderna = moderna_admin/population * 100,
-         pct_pfizer = pfizer_admin/population * 100)
+         pct_pfizer = pfizer_admin/population * 100,
+         janssen_pct_fully = janssen_fully/ population * 100,
+         moderna_pct_fully = moderna_fully/population *100,
+         pfizer_pct_fully = pfizer_fully/population *100
+         )
 
 quantile_janssen <- quantile(vaccine_brand$pct_janssen, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 quantile_moderna <- quantile(vaccine_brand$pct_moderna, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
@@ -293,7 +311,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 # Define server logic ----
 server <- function(input, output) {
   output$us_vaccine_plot <- renderPlot({
-
+    # table(us_states_brand$population, us_states_brand$status)
     plot1 <- ggplot(data = filter(us_states_vaccine, population == input$pop, status == input$vstatus),
     aes(x = long, y = lat,
         group = group, fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated")))+
@@ -332,6 +350,7 @@ server <- function(input, output) {
 
 
     if (input$display_option_p1 == "Actual Percent"){
+      plot1
       # ggplotly(plot1, tooltip = "text") %>%
       #    layout(legend = list(font = list(size=11)))
     }else if (input$display_option_p1 == "Quantile") {
@@ -378,9 +397,9 @@ server <- function(input, output) {
 
 
     if (input$display_option == "Actual Percent"){
-     # plot2
-      plotly::ggplotly(plot2, tooltip = c("text")) %>%
-       layout(legend = list(font = list(size=11)))
+      plot2
+      # plotly::ggplotly(plot2, tooltip = c("text")) %>%
+      #  layout(legend = list(font = list(size=11)))
     }else if (input$display_option == "Quantile") {
       plot2.quantile
     }
