@@ -330,10 +330,10 @@ server <- function(input, output) {
       labs(fill = "Percent (%)")+
       scale_fill_manual(values = colours)
 
-   # ggplotly(plot1, tooltip = "text") %>%
-   #     layout(legend = list(font = list(size=11)))
+
     if (input$display_option_p1 == "Actual Percent"){
-      plot1
+      # ggplotly(plot1, tooltip = "text") %>%
+      #    layout(legend = list(font = list(size=11)))
     }else if (input$display_option_p1 == "Quantile") {
       plot1.quantile
     }
@@ -378,12 +378,13 @@ server <- function(input, output) {
 
 
     if (input$display_option == "Actual Percent"){
-      plot2
+     # plot2
+      plotly::ggplotly(plot2, tooltip = c("text")) %>%
+       layout(legend = list(font = list(size=11)))
     }else if (input$display_option == "Quantile") {
       plot2.quantile
     }
-    # ggplotly(plot2, tooltip = c("text")) %>%
-    #   layout(legend = list(font = list(size=11)))
+
   })
 
 

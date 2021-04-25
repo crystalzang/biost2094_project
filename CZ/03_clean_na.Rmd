@@ -29,17 +29,17 @@ combine_extra <- combine%>%
 
 combine$date <- as.Date(combine$date,"%m/%d/%Y")
 
-combine2 <-combine %>%
-  select(country,date, population, daily_vaccinations,continent)%>%
-  group_by(country)%>%
-  arrange(date)%>%
-  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
-  group_by(country)%>%
-  mutate(sum = cumsum(daily_vaccinations))
+# combine2 <-combine %>%
+#   select(country,date, population, daily_vaccinations,continent)%>%
+#   group_by(country)%>%
+#   arrange(date)%>%
+#   mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
+#   group_by(country)%>%
+#   mutate(sum = cumsum(daily_vaccinations))
 
 
 #countries that doesn't have any people_vaccinated
-countries_0 <- combine2%>%
+countries_0 <- combine%>%
   group_by(country)%>%
   summarize(total_vaccinations = max(sum, na.rm=T))%>%
   filter(total_vaccinations==0)%>%
