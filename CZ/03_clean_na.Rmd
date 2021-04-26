@@ -1,7 +1,7 @@
 ---
 title: "03_clean_na"
 author: "Ziwei Crystal Zang"
-date: "4/10/2021"
+date: "4/25/2021"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -10,14 +10,6 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-
-```{r}
-check <- vaccine%>%
-  dplyr::group_by(country)%>%
-  dplyr::summarize(N=n())
-```
-
 
 # Finalized code
 ```{r}
@@ -38,8 +30,6 @@ combine_extra <- combine%>%
   select(country, date,people_vaccinated)
 
 combine$date <- as.Date(combine$date,"%m/%d/%Y")
-
-
 
 #countries that doesn't have any people_vaccinated
 countries_0 <- combine%>%
