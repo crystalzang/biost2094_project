@@ -22,9 +22,25 @@ library(RColorBrewer)
 library(plotly)
 library(Hmisc)
 #load data
-combine_new <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/clean_2.csv")
-combine_continent <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/combine_continent.csv")
-# assign colours to countries to ensure consistency between plots
+combine_new <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/clean_3.csv")
+combine_continent <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/combine_continent_new.csv")
+#names(combine_new)[names(combine_new) ==  "population.x" ] <- "population"
+#colnames(combine_new)
+#combine_continent<-combine_new%>%
+#  select(continent,date,people_fully_vaccinated,people_fully_vaccinated_per_million,
+#         people_vaccinated,people_vaccinated_per_million,
+#         daily_vaccinations, daily_vaccinated_per_million)%>%
+#  group_by(date,continent)%>%
+#  summarise(people_fully_vaccinated = sum(people_fully_vaccinated),
+#            people_fully_vaccinated_per_million = sum(people_fully_vaccinated_per_million),
+#            people_vaccinated=sum(people_vaccinated),
+#            daily_vaccinations=sum(daily_vaccinations),
+#            daily_vaccinated_per_million=sum(daily_vaccinated_per_million),
+#            people_vaccinated_per_million=sum(people_vaccinated_per_million))
+##combine_continent <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/combine_continent.csv")
+## assign colours to countries to ensure consistency between plots
+#write.csv(combine_new, "data/clean_3.csv", row.names = F)
+#write.csv(combine_continent, "data/combine_continent_new.csv", row.names = F)
 cls = rep(c(brewer.pal(8,"Dark2"), brewer.pal(10, "Paired"), brewer.pal(12, "Set3"), brewer.pal(8,"Set2"), brewer.pal(9, "Set1"), brewer.pal(8, "Accent"),  brewer.pal(9, "Pastel1"),  brewer.pal(8, "Pastel2")),4)
 cls_names = c(as.character(unique(combine_new$country)), as.character(unique(combine_continent$continent)))
 country_cols = cls[1:length(cls_names)]
@@ -85,7 +101,7 @@ daily_vaccines_plot <- function(combine_new,  plot_start_date) {
     xlab("Date") +
     geom_bar(position="stack", stat="identity") +
     ylab("New (Dayly)") +
-    scale_fill_manual(values=combine_new$country) +
+    #scale_fill_manual(values=combine_new$country) +
     theme(
       legend.title = element_blank(),
       legend.position = "",

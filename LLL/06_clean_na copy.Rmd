@@ -1,0 +1,162 @@
+---
+title: "05_clean_na"
+author: "Liling Lu"
+date: "4/15/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+as.character(United States,India,United Kingdom,Brazil, China, Germany, France)
+
+# Finalized code
+
+```{r}
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "zoo")) {library(pkg, character.only = TRUE)}
+
+vaccine <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
+name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
+vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+coronavirus_summary <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/coronavirus_summary.csv")
+daily_fill <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/clean_vaccine.csv")
+coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
+covronavirus <- coronavirus_summary %>% select(-country)
+combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
+combine$date <- as.Date(combine$date,"%m/%d/%Y")
+```
+
+#fill na for people vaccinated
+
+length(unique(daily_fill$country))
+
+```{r}
+countries_1 <- combine%>%
+  dplyr::group_by(country)%>%
+  dplyr::summarize(people_vaccinations_max = sum(!is.na(people_vaccinated)))%>%
+  filter(people_vaccinations_max>2)%>%
+  pull(country)
+'%notin%' <- Negate('%in%')
+country_invalid <- combine%>%
+  filter(country %notin% countries_1 )
+combine_new <- combine%>%
+  select(country, date, people_vaccinated,population,continent)%>%
+  filter(country %in% countries_1)
+#combine_new <- combine_new%>%
+#  dplyr::group_by(country)%>%
+#  dplyr::mutate(first_date = min(date))%>%
+#  dplyr::mutate(first = if_else(date == first_date, T, F))%>%
+#  dplyr::mutate(people_v_missing=if_else(is.na(people_vaccinated), T, F))%>%
+#  dplyr::mutate(people_vaccinated = if_else(first==T & people_v_missing==T, total_vaccinations, #people_vaccinated))%>%
+#  select(-total_vaccinations, -first_date, -first, -daily_v_missing)
+#only 38 entries from 7 countries have missing daily vaccination
+check <- combine_new%>%
+  filter(is.na(people_vaccinated))
+sum(is.na(combine_new$people_vaccinated))
+#no entry has daily vaccination of 0.
+check <- combine_new%>%
+  filter(people_vaccinated==0)
+country_info <- combine_new%>%
+  select(country, population,continent)%>%
+  distinct()
+combine_new <- combine_new%>%
+  select(-population, -continent)
+# france <- combine_new%>%
+#   filter(country=="France")
+combine_new_spread <- combine_new%>%
+  spread(key = date, value =people_vaccinated)%>%
+  column_to_rownames("country")
+dim(combine_new_spread)
+s <- t(apply(combine_new_spread, 1, function(x) na.fill(x, list(0, "extend", "extend"))))
+s <- as.data.frame(s)
+s <- s%>%
+  rownames_to_column("country")
+vaccine_people <- gather(s, key = "date", value = "people_vaccinated",-country)
+vaccine_people <- left_join(vaccine_people, country_info, by = "country")
+vaccine_people$date <- as.Date(vaccine_people$date,"%Y-%m-%d")
+people_fill <- merge( daily_fill, vaccine_people,by = c("country", "date"),all.x=T)
+```
+
+apply(people_fill, 2, function(x) sum(is.na(x)))
+
+#fillna for people_fully_vaccinated
+colnames(combine)
+
+```{r}
+countries_2 <- combine%>%
+  dplyr::group_by(country)%>%
+  dplyr::summarize(people_fully_max = sum(!is.na(people_fully_vaccinated)))%>%
+  filter(people_fully_max>2)%>%
+  pull(country)
+'%notin%' <- Negate('%in%')
+country_invalid <- combine%>%
+  filter(country %notin% countries_2 )
+combine_new <- combine%>%
+  select(country, date, people_fully_vaccinated,population,continent)%>%
+  filter(country %in% countries_2)
+#combine_new <- combine_new%>%
+#  dplyr::group_by(country)%>%
+#  dplyr::mutate(first_date = min(date))%>%
+#  dplyr::mutate(first = if_else(date == first_date, T, F))%>%
+#  dplyr::mutate(people_v_missing=if_else(is.na(people_vaccinated), T, F))%>%
+#  dplyr::mutate(people_vaccinated = if_else(first==T & people_v_missing==T, total_vaccinations, #people_vaccinated))%>%
+#  select(-total_vaccinations, -first_date, -first, -daily_v_missing)
+#only 38 entries from 7 countries have missing daily vaccination
+check <- combine_new%>%
+  filter(is.na(people_fully_vaccinated))
+sum(is.na(combine_new$people_fully_vaccinated))
+#no entry has daily vaccination of 0.
+check <- combine_new%>%
+  filter(people_fully_vaccinated==0)
+country_info <- combine_new%>%
+  select(country, population,continent)%>%
+  distinct()
+combine_new <- combine_new%>%
+  select(-population, -continent)
+# france <- combine_new%>%
+#   filter(country=="France")
+combine_new_spread <- combine_new%>%
+  spread(key = date, value =people_fully_vaccinated)%>%
+  column_to_rownames("country")
+dim(combine_new_spread)
+s <- t(apply(combine_new_spread, 1, function(x) na.fill(x, list(0, "extend", "extend"))))
+s <- as.data.frame(s)
+s <- s%>%
+  rownames_to_column("country")
+vaccine_people_fully <- gather(s, key = "date", value = "people_fully_vaccinated",-country)
+vaccine_people_fully <- left_join(vaccine_people_fully, country_info, by = "country")
+vaccine_people_fully$date <- as.Date(vaccine_people_fully$date,"%Y-%m-%d")
+clean <- merge(people_fill,vaccine_people_fully, by = c('country', 'date'),all.x=T)
+```
+
+```{r}
+apply(clean, 2, function(x) sum(is.na(x)))
+```
+
+
+```{r}
+clean <- clean %>% select(-c(people_vaccinated.x,population.y,continent.y,population,continent))
+names(clean)[names(clean) ==  "people_vaccinated.y" ] <- "people_vaccinated"
+names(clean)[names(clean) ==  "continent.x" ] <- "continent"
+```
+
+ clean[is.na(clean)] <- 0
+
+```{r}
+clean['people_fully_vaccinated_per_million'] <- (clean$people_fully_vaccinated/clean$population)*1000000
+clean['people_vaccinated_per_million'] <- (clean$people_vaccinated/clean$population)*1000000
+clean['daily_vaccinated_per_million'] <- (clean$daily_vaccinations/clean$population)*1000000
+```
+
+```{r}
+apply(clean, 2, function(x) sum(is.na(x)))
+```
+
+
+```{r}
+write.csv(clean, "data/clean_3.csv", row.names = F)
+```
+

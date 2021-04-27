@@ -33,6 +33,7 @@ combine <-combine %>%
          people_vaccinated,people_vaccinated_per_hundred,people_vaccinated_per_hundred,
          people_fully_vaccinated,people_fully_vaccinated_per_hundred,continent)%>%
   mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))
+length(unique(combine$country))
 #combine_new<-combine_new[!is.na(combine_new$continent),]
 #check missingness
 apply(combine, 2, function(x) sum(is.na(x)))
