@@ -20,22 +20,31 @@ if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.u
 
 # building the map
 
-worldcountry = geojson_read("input_data/50m.geojson", what = "sp")
+countries_map <- geojson_read("data/custom.geo.json", what = "sp")
 
-cv_large_countries = cv_today %>% filter(alpha3 %in% worldcountry$ADM0_A3)
-if (all(cv_large_countries$alpha3 %in% worldcountry$ADM0_A3)==FALSE) { print("Error: inconsistent country names")}
-cv_large_countries = cv_large_countries[order(cv_large_countries$alpha3),]
+# count data for map
 
-bins = c(0,10,50,100,500,1000,Inf)
-cv_pal <- colorBin("Oranges", domain = cv_large_countries$cases_per_million, bins = bins)
-plot_map <- worldcountry[worldcountry$ADM0_A3 %in% cv_large_countries$alpha3, ]
+vaccines <- read.csv("data/clean.csv")
 
-basemap = leaflet(plot_map) %>%
+current_date <- as.Date(max(vaccines$date),"%Y-%m-%d")
+
+vax_today <- subset(vaccines, date==current_date)
+
+
+country_vaccine_count <- vax_today %>% filter(alpha3 %in% countries$ADM0_A3)
+if (all(cv_large_countries$alpha3 %in% countries$ADM0_A3)==FALSE) { print("Error: inconsistent country names")}
+country_vaccine_count = country_vaccine_count[order(cv_large_countries$alpha3),]
+
+bins <-  c(0,10,50,100,500,1000,Inf)
+vax_colors <- colorBin("Oranges", domain = country_vaccine_count$cases_per_million, bins = bins)
+plot_map <- countries[countries$ADM0_A3 %in% country_vaccine_count$alpha3, ]
+
+basemap <- leaflet(plot_map) %>%
   addTiles() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   fitBounds(~-100,-60,~60,70) %>%
-  addLegend("bottomright", pal = cv_pal, values = ~cv_large_countries$deaths_per_million,
-            title = "<small>Deaths per million</small>")
+  addLegend("bottomright", pal = cv_pal, values = ~country_vaccine_count$,
+            title = "<small></small>")
 
 # Putting the map into the ui
 
