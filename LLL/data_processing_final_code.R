@@ -1,21 +1,7 @@
----
-title: "05_clean_na"
-author: "Liling Lu"
-date: "4/15/2021"
-output: html_document
-editor_options: 
-  chunk_output_type: console
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-as.character(United States,India,United Kingdom,Brazil, China, Germany, France)
-
 # Finalized code
 
-```{r}
+## load in r libraries and data
+
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "zoo")) {library(pkg, character.only = TRUE)}
 
 vaccine <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/vaccinations.csv")
@@ -27,11 +13,10 @@ coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'countr
 covronavirus <- coronavirus_summary %>% select(-country)
 combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
 combine$date <- as.Date(combine$date,"%m/%d/%Y")
-```
 
-#fill na for people vaccinated
+## fill na for people vaccinated
 
-```{r}
+
 combine2 <-combine %>%
   select(country,date, people_vaccinated)%>%
   group_by(country)%>%
@@ -75,12 +60,9 @@ people_fill <- gather(s2, key = "date", value = "people_vaccinated",-country)
 #people_fill <- left_join(people_fill, country_info_2, by = c("country","date"))
 people_fill$date <- as.Date(people_fill$date,"%Y-%m-%d")
 people_fill <- merge(people_fill, daily_fill, by = c("country", "date"))
-```
 
 
-#fillna for people_fully_vaccinated
-
-```{r}
+## fillna for people_fully_vaccinated
 combine3 <-combine %>%
   select(country,date, people_fully_vaccinated)%>%
   group_by(country)%>%
@@ -108,7 +90,6 @@ combine_new_spread_3 <- combine_new_3%>%
   column_to_rownames("country")
 #fill columns with at least to NAs
 idx3 <- colSums(!is.na(combine_new_spread_3)) > 1
-idx3
 # [1] FALSE FALSE  TRUE  TRUE  TRUE
 
 # interpolate 'TRUE columns' only
@@ -120,30 +101,49 @@ s3 <- s3%>%
 people_fully_fill <- gather(s3, key = "date", value = "people_fully_vaccinated",-country)
 people_fully_fill$date <- as.Date(people_fully_fill$date,"%Y-%m-%d")
 clean <- merge(people_fully_fill, people_fill, by = c('country', 'date'))
-```
 
-```{r}
-colnames(clean)
-```
-
-
-```{r}
 clean <- clean %>% select(-c(people_vaccinated.y,people_fully_vaccinated.y,people_fully_vaccinated.x,people_fully_vaccinated_1))
 names(clean)[names(clean) ==  "people_vaccinated.x" ] <- "people_vaccinated"
-```
 
-```{r}
 clean['people_fully_vaccinated_per_million'] <- (clean$people_fully_vaccinated/clean$population)*1000000
 clean['people_vaccinated_per_million'] <- (clean$people_vaccinated/clean$population)*1000000
 clean['daily_vaccinated_per_million'] <- (clean$daily_vaccinations/clean$population)*1000000
-```
 
-```{r}
-apply(clean, 2, function(x) sum(is.na(x)))
-```
+#aggregate by continent
+combine_continent<-clean%>%
+  select(country,continent,date,people_fully_vaccinated,people_fully_vaccinated_per_million,
+         people_vaccinated,people_vaccinated_per_million,
+         daily_vaccinations, daily_vaccinated_per_million,population)%>%
+  group_by(date,continent)%>%
+  summarise(people_fully_vaccinated = sum(people_fully_vaccinated),
+            people_fully_vaccinated_per_million = sum(people_fully_vaccinated_per_million),
+            people_vaccinated=sum(people_vaccinated),
+            daily_vaccinations=sum(daily_vaccinations),
+            daily_vaccinated_per_million=sum(daily_vaccinated_per_million),
+            people_vaccinated_per_million=sum(people_vaccinated_per_million),
+            population = sum(population))
+## fix abnormal data in people_vaccinated and people_fully_vaccinated
+fix_abnormalities <- function(data,cn){
+  cty_list<-unique(data$cn)
+  var_list <- c("people_vaccinated","people_fully_vaccinated")
+  for (c in cty_list){
+    for (var in var_list){
+      value_list <- data[var][data$cn==c]
+      for (i in range(1,length(value_list))){
+        if (value_list[i]<value_list[i-1]){
+          value_list[i]<-value_list[i-1]
+        }
+      }
+      for (j in range(1,length(value_list)-1)){
+        if (value_list[j] == value_list[j+1]){
+          value_list[j] <- (value_list[j-1]+value_list[j+1])/2
+        }
+      }
+      value_list <- lapply(value_list,round,0)
+      data[var][data$cn==c] <- value_list
+    }
+  }
+}
 
-
-```{r}
-write.csv(clean, "data/clean.csv", row.names = F)
-```
-
+clean_2 = fix_abnormalities(clean,"country")
+combine_continent = fix_abnormalities(combine_continent,"continent")

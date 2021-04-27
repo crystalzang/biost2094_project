@@ -26,4 +26,6 @@ name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
 vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
 
 combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+combine$date <- as.Date(combine$date,"%m/%d/%Y")
+clean$date <- as.Date(clean$date,"%m/%d/%Y")
 ```
