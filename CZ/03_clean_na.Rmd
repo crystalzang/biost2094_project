@@ -1,7 +1,7 @@
 ---
 title: "03_clean_na"
 author: "Ziwei Crystal Zang"
-date: "4/10/2021"
+date: "4/25/2021"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -16,8 +16,10 @@ knitr::opts_chunk$set(echo = TRUE)
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "zoo")) {library(pkg, character.only = TRUE)}
 
 vaccine <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccinations.csv")
+
 name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
 vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
+
 coronavirus_summary <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/coronavirus_summary.csv")
 
 coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
@@ -29,28 +31,38 @@ combine_extra <- combine%>%
 
 combine$date <- as.Date(combine$date,"%m/%d/%Y")
 
-combine2 <-combine %>%
-  select(country,date, population, daily_vaccinations,continent)%>%
-  group_by(country)%>%
-  arrange(date)%>%
-  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
-  group_by(country)%>%
-  mutate(sum = cumsum(daily_vaccinations))
-
-
 #countries that doesn't have any people_vaccinated
-countries_0 <- combine2%>%
-  group_by(country)%>%
-  summarize(total_vaccinations = max(sum, na.rm=T))%>%
-  filter(total_vaccinations==0)%>%
+countries_0 <- combine%>%
+  dplyr::group_by(country)%>%
+  dplyr::summarize(daily_vaccinations_max = max(daily_vaccinations, na.rm=TRUE))%>%
+  filter(daily_vaccinations_max<0)%>%
   pull(country)
+
+country_invalid <- combine%>%
+  filter(country %in%countries_0 )
+
 
 '%notin%' <- Negate('%in%')
 combine_new <- combine%>%
-  select(country, date, daily_vaccinations,population,continent)%>%
+  select(country, date, daily_vaccinations,population,continent,total_vaccinations)%>%
   filter(country %notin% countries_0)
-#if values are 0, fill in as na
-combine_new$daily_vaccinations <-na_if(combine_new$daily_vaccinations,0)
+
+combine_new <- combine_new%>%
+  dplyr::group_by(country)%>%
+  dplyr::mutate(first_date = min(date))%>%
+  dplyr::mutate(first = if_else(date == first_date, T, F))%>%
+  dplyr::mutate(daily_v_missing=if_else(is.na(daily_vaccinations), T, F))%>%
+  dplyr::mutate(daily_vaccinations = if_else(first==T & daily_v_missing==T, total_vaccinations, daily_vaccinations))%>%
+  select(-total_vaccinations, -first_date, -first, -daily_v_missing)
+
+#only 38 entries from 7 countries have missing daily vaccination
+check <- combine_new%>%
+  filter(is.na(daily_vaccinations))
+sum(is.na(combine_new$daily_vaccinations))
+
+#no entry has daily vaccination of 0.
+check <- combine_new%>%
+  filter(daily_vaccinations==0)
 
 country_info <- combine_new%>%
   select(country, population,continent)%>%
@@ -59,29 +71,49 @@ country_info <- combine_new%>%
 combine_new <- combine_new%>%
   select(-population, -continent)
 
+# france <- combine_new%>%
+#   filter(country=="France")
 combine_new_spread <- combine_new%>%
   spread(key = date, value =daily_vaccinations)%>%
   column_to_rownames("country")
+dim(combine_new_spread)
 
-s <- apply(combine_new_spread, 2, function(x) na.fill(x, list(0, "extend", "extend")))
+s <- t(apply(combine_new_spread, 1, function(x) na.fill(x, list(0, "extend", "extend"))))
 s <- as.data.frame(s)
 s <- s%>%
   rownames_to_column("country")
+
+
 
 vaccine_final <- gather(s, key = "date", value = "daily_vaccinations",-country)
 vaccine_final <- left_join(vaccine_final, country_info, by = "country")
+
+
 vaccine_final <- vaccine_final%>%
   group_by(country)%>%
   mutate(cumsum_total_vaccination = cumsum(daily_vaccinations))
-  
 
 vaccine_final$date <- as.Date(vaccine_final$date,"%Y-%m-%d")
 
-vaccine_final_all <- merge(vaccine_final, combine_extra, by = c("country", "date"))
 
-write.csv(vaccine_final_all, "data/clean_vaccine.csv", row.names = F)
+check <- vaccine_final_all%>%
+  dplyr::group_by(country)%>%
+  dplyr::summarize(N=n())
+View(check)  
+
+
+vaccine_final_all <- merge(vaccine_final, combine_extra, by = c("country", "date"), all.x=T)
+
+
+# export cleaned data
+#write.csv(vaccine_final_all, "data/clean_vaccine.csv", row.names = F)
+
+```
+
+#Plot on the cleaned data
+```{r}
 #united states
-ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_vaccine)) + 
+ggplot(data = filter(vaccine_final_all, country=="Afghanistan"), aes(x = date, y = cumsum_total_vaccination)) + 
   geom_line()  +
   geom_point(size = 0.5)+
   aes(colour = country) + 
@@ -89,154 +121,14 @@ ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y =
   labs(title = "")
 
 #color by country
-ggplot(data = vaccine_final, aes(x = date, y = total_vaccine)) + geom_line()  + 
+ggplot(data = vaccine_final, aes(x = date, y = cumsum_total_vaccination)) + geom_line()  + 
   aes(colour = country) + 
   theme(legend.position = "right") + labs(title = "")
 ```
 
+
+#Example Zoo fill in NA
 ```{r}
-#countries that doesn't have any people_vaccinated
-countries_0 <- combine%>%
-  group_by(country)%>%
-  summarize(max = max(people_vaccinated, na.rm=T))%>%
-  filter(max==0)%>%
-  pull(country)
-
-'%notin%' <- Negate('%in%')
-combine_new <- combine%>%
-  select(country, date, daily_vaccinations,population,continent)%>%
-  filter(country %notin% countries_0)
-#if values are 0, fill in as na
-combine_new$daily_vaccinations <-na_if(combine_new$daily_vaccinations,0)
-
-country_info <- combine_new%>%
-  select(country, population,continent)%>%
-  distinct()
-
-combine_new <- combine_new%>%
-  select(-population, -continent)
-
-combine_new_spread <- combine_new%>%
-  spread(key = date, value =daily_vaccinations)%>%
-  column_to_rownames("country")
-
-s <- apply(combine_new_spread, 2, function(x) na.fill(x, list(0, "extend", "extend")))
-s <- as.data.frame(s)
-s <- s%>%
-  rownames_to_column("country")
-
-vaccine_final <- gather(s, key = "date", value = "daily_people_vaccinated",-country)
-vaccine_final <- left_join(vaccine_final, country_info, by = "country")
-vaccine_final <- vaccine_final%>%
-  group_by(country)%>%
-  mutate(total_vaccine = cumsum(daily_people_vaccinated))
-  
-
-vaccine_final$date <- as.Date(vaccine_final$date,"%Y-%m-%d")
-
-
-#united states
-ggplot(data = filter(vaccine_final, country=="United States"), aes(x = date, y = total_vaccine)) + 
-  geom_line()  +
-  geom_point(size = 0.5)+
-  aes(colour = country) + 
-  theme(legend.position = "right") +
-  labs(title = "")
-
-#color by country
-ggplot(data = vaccine_final, aes(x = date, y = total_vaccine)) + geom_line()  + 
-  aes(colour = country) + 
-  theme(legend.position = "right") + labs(title = "")
-```
-
-# Experimental code
-```{r}
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
-
-vaccine <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccinations.csv")
-name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
-coronavirus_summary <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/coronavirus_summary.csv")
-
-coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
-covronavirus <- coronavirus_summary %>% select(-country)
-combine <- merge(vaccine, covronavirus, by="iso_code", all.x=T)
-head(combine)
-
-combine$date <- as.Date(combine$date,"%m/%d/%Y")
-combine_new <-combine %>%
-  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,total_vaccinations_per_hundred, population, daily_vaccinations)%>%
-  group_by(country)%>%
-  arrange(date)%>%
-  mutate(daily_vaccinations = if_else(is.na(daily_vaccinations ), 0, daily_vaccinations))%>%
-  group_by(country)%>%
-  mutate(sum = cumsum(daily_vaccinations))%>%
-  select(country,date,total_vaccinations,people_fully_vaccinated,people_vaccinated,daily_vaccinations, sum)
-
-#count non NA values for each country
-check <- combine_new%>%
-  select(country, date, total_vaccinations)%>%
-  mutate(is_na = is.na(total_vaccinations))%>%
-  group_by(country)%>%
-  summarize(sum(is_na))
-  
-#compare the original total count and cumulative sum daily count
-combine_new_summarize <- combine_new%>%
-  group_by(country)%>%
-  summarize(total_doses=max(total_vaccinations,na.rm=T),
-            total_doses_na = sum(is.na(total_vaccinations)),
-            total_doses_imputed = max(sum, na.rm=T),
-             total_doses_imputed_na = sum(is.na(sum)),
-            people_vaccination = max(people_vaccinated, na.rm=T),
-                 people_vaccination_na = sum(is.na(people_vaccinated)),
-            total_vaccination_fully = max(people_fully_vaccinated,na.rm=T),
-                  total_vaccination_fully_na = sum(is.na(people_fully_vaccinated)))
-
-# combine_new_fix <- combine_new%>%
-#   select(country, date,people_vaccinated)%>%
-#   group_by(country)%>%
-#   mutate(start_date = min(date))
-
-# n = length(unique(combine_new$country))
-country_name <- unique(combine_new$country)
-# startdate = "2020-12-13"
-# enddate = "2021-03-22"
-# matrix <- matrix(data= NA,nrow =n, ncol = 99)
-# for (c in country_name){
-# }
-
-#countries that doesn't have any people_vaccinated
-countries_0 <- combine_new%>%
-  group_by(country)%>%
-  summarize(total_vaccinations = max(sum, na.rm=T))%>%
-  filter(total_vaccinations==0)%>%
-  pull(country)
-
-'%notin%' <- Negate('%in%')
-df <- combine_new%>%
-  select(country, date,total_vaccinations)%>%
-  filter(country %notin% countries_0)
-df$total_vaccinations <-na_if(df$total_vaccinations,0)
-
-# Azerbaijan <- df%>%
-#   filter(country =="Azerbaijan")%>%
-#   select(date,people_vaccinated)
-
-df <- df%>%
-  spread(key = date, value =total_vaccinations)%>%
-  column_to_rownames("country")
-
-# Azerbaijan <- as.data.frame(t(df["Azerbaijan",]))
-# Azerbaijan_z <- as.data.frame(na.fill(Azerbaijan, list(0, NA, "extend")))
-#Azerbaijan_c <- cbind(Azerbaijan,Azerbaijan_z)
-
-s <- apply(df, 2, function(x) na.fill(x, list(0, "extend", "extend")))
-
-Azerbaijan2 <- s["Azerbaijan",]
-Azerbaijan2_z <- as.data.frame(na.fill(Azerbaijan2, list(0, NA, "extend")))
-
-
-
 library(zoo)
 z <- c(NA,NA,NA,NA,NA,NA,NA,NA, 1, NA,10,NA,NA,40, 50, NA)
 na.fill(z, list(0, NA, "extend"))
