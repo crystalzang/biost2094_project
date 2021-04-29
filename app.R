@@ -48,7 +48,6 @@ total_vax <- vaccines %>% dplyr::group_by(iso) %>% dplyr::summarize(max3 = max(c
 total <- inner_join(vax_max, countries, by = "iso")
 total2 <- inner_join(country_pops, total, by = "iso")
 total3 <- inner_join(total_vax, total2, by = "iso")
-total3 <- total3[-c(54, 82), ]
 
 
 # Liling
