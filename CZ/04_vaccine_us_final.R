@@ -1,8 +1,10 @@
 
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc"))
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc", "tidyselect"))
   {library(pkg, character.only = TRUE)}
 
+# read in data
 vaccine_us <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccine_us.csv")
+# clean varaible names
 vaccine_us <- vaccine_us%>%
   clean_names()
 
@@ -48,9 +50,11 @@ vaccine_us_new <- vaccine_us%>%
   mutate( janssen_pct_admin = (janssen_deliver-janssen_admin)/janssen_deliver,
           pfizer_pct_admin = (pfizer_deliver - pfizer_admin)/pfizer_deliver ,
           moderna_pct_admin =  (moderna_deliver-moderna_admin)/moderna_deliver)
-
-vaccine_us_new <- apply(vaccine_us_new, 2, as.numeric)
+# convert all variables to numeric (state name will be NA)
+suppressWarnings(vaccine_us_new <- apply(vaccine_us_new, 2, as.numeric))
 vaccine_us_new <- as.data.frame(vaccine_us_new)
+
+#set state name using previous dataframe
 vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
 vaccine_us_new$state <-  tolower(vaccine_us_new$state)
 
@@ -65,83 +69,87 @@ vaccine_us_long <- vaccine_us_new%>%
   select(-population2)%>%
   #gather overall percent
   gather(key = "status", value = "percent", percent_vaccinated, percent_fully_vaccinated)%>%
-  mutate(status = if_else(status == "percent_fully_vaccinated", "fully vaccinated", "at least one dose"))
+  mutate(status = if_else(status == "percent_fully_vaccinated", "fully vaccinated", "at least one dose"))%>%
+  select(state,population, status, percent)%>%
+  filter(!is.na(percent))
+
+# function to automatically format quantile label
+qname <- function (q, a, b, c){
+  paste("[", as.character(q[a]), ",",as.character(q[b]), ")",c,sep="")
+}
 
 #1. at least one dose, all
 df1 <- filter(vaccine_us_long, status == "at least one dose", population == "all")
-pct_vaccinated_q <- quantile(df1$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+q <- quantile(df1$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 df1  <- df1%>%
-  mutate(pct_vaccinated_q = if_else(percent < pct_vaccinated_q[2], "[15%,29%)",
-                                    if_else(percent < pct_vaccinated_q[3], "[29%,33%)",
-                                            if_else(percent < pct_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
-  rename("percent_q" = "pct_vaccinated_q")
+  mutate(percent_q = if_else(percent < q[2], qname(q,1,2,""),
+                                    if_else(percent < q[3], qname(q,2,3,""),
+                                            if_else(percent < q[4], qname(q,3,4,""),qname(q,4,5,"")))))
 
 #1.5. fully, all
 df1.5 <- filter(vaccine_us_long, status == "fully vaccinated", population == "all")
-pct_fully_vaccinated_q <- quantile(df1.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+q <- quantile(df1.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 
 df1.5  <- df1.5%>%
-  mutate(pct_fully_vaccinated_q = if_else(percent < pct_fully_vaccinated_q[2], "[15%,29%)",
-                                          if_else(percent < pct_fully_vaccinated_q[3], "[29%,33%)",
-                                                  if_else(percent < pct_fully_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
-  rename("percent_q" = "pct_fully_vaccinated_q")
+  mutate(percent_q = if_else(percent < q[2], qname(q,1,2,""),
+                                          if_else(percent < q[3], qname(q,2,3,""),
+                                                  if_else(percent < q[4],qname(q,3,4,""), qname(q,4,5,"")))))
 
 
 #2. at least one dose, 65+
 df2 <- filter(vaccine_us_long, status == "at least one dose", population == "65+")
-pct_65_vaccinated_q <- quantile(df2$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+q <- quantile(df2$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 df2 <- df2%>%
-  mutate(pct_65_vaccinated_q = if_else(percent < pct_65_vaccinated_q[2], "[15%,29%)",
-                                       if_else(percent < pct_65_vaccinated_q[3], "[29%,33%)",
-                                               if_else(percent < pct_65_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
-  rename("percent_q" = "pct_65_vaccinated_q")
+  mutate(percent_q = if_else(percent < q[2], qname(q,1,2,""),
+                                       if_else(percent < q[3],  qname(q,2,3,""),
+                                               if_else(percent < q[4],  qname(q,3,4,""),  qname(q,4,5,"")))))
 
 #2.5. fully, 65+
 df2.5 <- filter(vaccine_us_long, status == "fully vaccinated", population == "65+")
-pct_65_fully_vaccinated_q <- quantile(df2.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
+q <- quantile(df2.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 df2.5 <- df2.5%>%
-  mutate(pct_65_fully_vaccinated_q = if_else(percent < pct_65_fully_vaccinated_q[2], "[15%,29%)",
-                                             if_else(percent < pct_65_fully_vaccinated_q[3], "[29%,33%)",
-                                                     if_else(percent < pct_65_fully_vaccinated_q[4], "33%,35%)", "[35%,47%)"))))%>%
-  rename("percent_q" = "pct_65_fully_vaccinated_q")
+  mutate(percent_q = if_else(percent < q[2],  qname(q,1,2," "),
+                                             if_else(percent < q[3],  qname(q,2,3," "),
+                                                     if_else(percent < q[4],  qname(q,3,4," "), qname(q,4,5," ")))))
 
 #3. at least one dose, 18+
 df3 <- filter(vaccine_us_long, status == "at least one dose", population == "18+")
-pct_18_vaccinated_q <- quantile(df3$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
-
+q <- quantile(df3$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 df3 <- df3%>%
-  mutate(pct_18_vaccinated_q = if_else(percent < pct_18_vaccinated_q[2], "[15%,29%)",
-                                       if_else(percent < pct_18_vaccinated_q[3], "[29%,33%)",
-                                               if_else(percent < pct_18_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
-  rename("percent_q" = "pct_18_vaccinated_q")
+  mutate(percent_q = if_else(percent < q[2], qname(q,1,2," "),
+                                       if_else(percent < q[3], qname(q,2,3," "),
+                                               if_else(percent < q[4], qname(q,3,4," "), qname(q,4,5," ")))))
 
 #3.5. fully, 18+
 df3.5 <- filter(vaccine_us_long, status == "fully vaccinated", population == "18+")
-pct_18_fully_vaccinated_q <- quantile(df3.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
-
+q <- quantile(df3.5$percent, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 df3.5 <- df3.5%>%
-  mutate(pct_18_fully_vaccinated_q = if_else(percent < pct_18_fully_vaccinated_q[2], "[15%,29%)",
-                                             if_else(percent < pct_18_fully_vaccinated_q[3], "[29%,33%)",
-                                                     if_else(percent < pct_18_fully_vaccinated_q[4], "[33%,35%)", "[35%,47%)"))))%>%
-  rename("percent_q" = "pct_18_fully_vaccinated_q")
+  mutate(percent_q = if_else(percent < q[2], qname(q,1,2,"  "),
+                                             if_else(percent < q[3], qname(q,2,3,"  "),
+                                                     if_else(percent < q[4], qname(q,3,4,"  "), qname(q,4,5,"  ")))))
 
-all <- rbind(df1, df1.5, df2, df2.5, df3, df3.5)
+vaccine_us_long_quantile <- rbind(df1, df1.5, df2, df2.5, df3, df3.5)
+factor  <- vaccine_us_long_quantile%>%
+  dplyr::group_by(population, status,percent_q)%>%
+  dplyr::summarize(N=n())
+
+vaccine_us_long_quantile$percent_q <- factor(vaccine_us_long_quantile$percent_q, levels =factor$percent_q)
+
 #join with the us state dataset for the plot
 us_states <- map_data("state")
-us_states_vaccine <- left_join(us_states, all, by=c("region" = "state"))
+us_states_vaccine <- left_join(us_states, vaccine_us_long_quantile, by=c("region" = "state"))
 us_states_vaccine$region <-  capitalize(us_states_vaccine$region)
-
 
 ##########################################
 # vaccine brand
 vaccine_brand <- vaccine_us_new%>%
-  mutate(population = people_vaccinated/ pct_vaccinated * 100,
-         pct_janssen = janssen_admin/population * 100,
-         pct_moderna = moderna_admin/population * 100,
-         pct_pfizer = pfizer_admin/population * 100,
-         janssen_pct_fully = janssen_fully/ population * 100,
-         moderna_pct_fully = moderna_fully/population *100,
-         pfizer_pct_fully = pfizer_fully/population *100
+  mutate(population = round(people_vaccinated/ pct_vaccinated * 100, digits=2),
+         pct_janssen = round(janssen_admin/population * 100,digits=2),
+                pct_moderna = round(moderna_admin/population * 100,digits=2),
+                      pct_pfizer = round(pfizer_admin/population * 100,digits=2),
+                            janssen_pct_fully = round(janssen_fully/ population * 100,digits=2),
+                                  moderna_pct_fully = round(moderna_fully/population *100,digits=2),
+                                        pfizer_pct_fully = round(pfizer_fully/population *100,digits=2)
   )
 
 quantile_janssen <- quantile(vaccine_brand$pct_janssen, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
@@ -149,21 +157,29 @@ quantile_moderna <- quantile(vaccine_brand$pct_moderna, probs = seq(0, 1, 0.25),
 quantile_pfizer <- quantile(vaccine_brand$pct_pfizer, probs = seq(0, 1, 0.25), na.rm = TRUE, names = TRUE, type = 7)
 
 vaccine_brand <- vaccine_brand%>%
-  mutate(pct_janssen_q = if_else(pct_janssen < quantile_janssen[2], "[0%,1.01%)",
-                                 if_else(pct_janssen < quantile_janssen[3], "[1.01%,1.17%)",
-                                         if_else(pct_janssen < quantile_janssen[4], "[1.17%,1.34%)", "[1.34,2.34)"))))%>%
-  mutate(pct_moderna_q = if_else(pct_moderna < quantile_moderna[2], "[7.03%,20.82%)",
-                                 if_else(pct_moderna < quantile_moderna[3], "[20.82%,23.69%)",
-                                         if_else(pct_moderna < quantile_moderna[4], "[23.69%,25.90%)", "[25.90%,73.89%)"))))%>%
-  mutate(pct_pfizer_q = if_else(pct_pfizer < quantile_pfizer[2], "[0%,23.78%)",
-                                if_else(pct_pfizer < quantile_pfizer[3], "[23.78%,26.15%)",
-                                        if_else(pct_pfizer < quantile_pfizer[4], "[26.15%,28.28%)", "[28.28%,45.25%)"))))%>%
+  mutate(pct_janssen_q = if_else(pct_janssen < quantile_janssen[2], qname(quantile_janssen,1,2,""),
+                                 if_else(pct_janssen < quantile_janssen[3], qname(quantile_janssen,2,3,""),
+                                         if_else(pct_janssen < quantile_janssen[4], qname(quantile_janssen,3,4,""), qname(quantile_janssen,4,5,"")))))%>%
+  mutate(pct_moderna_q = if_else(pct_moderna < quantile_moderna[2],  qname(quantile_moderna,1,2,""),
+                                 if_else(pct_moderna < quantile_moderna[3],  qname(quantile_moderna,2,3,""),
+                                         if_else(pct_moderna < quantile_moderna[4],  qname(quantile_moderna,3,4,""),  qname(quantile_moderna,4,5,"")))))%>%
+  mutate(pct_pfizer_q = if_else(pct_pfizer < quantile_pfizer[2], qname(quantile_pfizer,1,2,""),
+                                if_else(pct_pfizer < quantile_pfizer[3], qname(quantile_pfizer,2,3,""),
+                                        if_else(pct_pfizer < quantile_pfizer[4],qname(quantile_pfizer,3,4,""), qname(quantile_pfizer,4,5,"")))))%>%
   gather(key = "brand", value = "percent_q", pct_pfizer_q, pct_janssen_q, pct_moderna_q)%>%
   mutate(brand = if_else(brand == "pct_janssen_q", "Janssen(J&J)",
                          if_else(brand == "pct_moderna_q", "Moderna", "Pfizer")))%>%
   gather(key = "brand2", value = "percent", pct_pfizer, pct_janssen, pct_moderna)%>%
   select(-brand2)%>%
-  mutate(percent= round(percent, 2))
+  select(state, brand, percent, percent_q)%>%
+  filter(!is.na(percent))
+
+factor  <- vaccine_brand%>%
+  dplyr::group_by(brand,percent_q)%>%
+  dplyr::summarize(N=n())
+
+vaccine_brand$percent_q <- factor(vaccine_brand$percent_q, levels =factor$percent_q)
+
 
 #join with the us state dataset for the plot
 us_states <- map_data("state")
