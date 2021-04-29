@@ -369,6 +369,40 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                      ))
                  ),
                  navbarMenu(title = "US Vaccine Progress",
+                            ,
+                            tabPanel(title = "US Vaccine Brand Progress",
+                                     sidebarLayout(
+                                       sidebarPanel(
+                                         # Options to select vaccine brand
+                                         radioButtons("vbrand",
+                                                      label = h3("Vaccine Brand"),
+                                                      choices = list("Pfizer" = "Pfizer",
+                                                                     "Moderna" = "Moderna",
+                                                                     "Janssen(J&J)" = "Janssen(J&J)"),
+                                                      selected = "Pfizer"),
+                                         width=3
+                                       ),
+                                       mainPanel(
+                                         "Data is from",
+                                         tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
+                                         tags$br(),tags$br(),
+                                         "Data as of: April 27, 2021 6:00am ET. Posted: Tuesday, April 27, 2021 2:15 PM ET",
+                                         fluidRow(
+                                           column(3, offset = 9,
+
+                                                  radioButtons(inputId = "display_option",
+                                                               label = "Display:",
+                                                               choices = c("Actual Percent", "Quantile"),
+                                                               selected = "Quantile")
+                                           )),
+                                         plotOutput("us_vaccine_plot2"),
+                                         width=9,
+                                         plotOutput("us_vaccine_barplot_brand", height = 1500),
+                                         tags$br(), tags$br(),tags$br()
+                                       )
+                                     )
+
+                            ),
                             tabPanel(title = "US Vaccine Progress",
                                      tags$style(type="text/css",
                                                 ".shiny-output-error { visibility: hidden; }",
@@ -412,39 +446,6 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                          tags$br(), tags$br(),tags$br()
                                        )
                                      )
-                            ),
-                            tabPanel(title = "US Vaccine Brand Progress",
-                                     sidebarLayout(
-                                       sidebarPanel(
-                                         # Options to select vaccine brand
-                                         radioButtons("vbrand",
-                                                      label = h3("Vaccine Brand"),
-                                                      choices = list("Pfizer" = "Pfizer",
-                                                                     "Moderna" = "Moderna",
-                                                                     "Janssen(J&J)" = "Janssen(J&J)"),
-                                                      selected = "Pfizer"),
-                                         width=3
-                                       ),
-                                       mainPanel(
-                                         "Data is from",
-                                         tags$a(href="https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html", "CDC"),
-                                         tags$br(),tags$br(),
-                                         "Data as of: April 27, 2021 6:00am ET. Posted: Tuesday, April 27, 2021 2:15 PM ET",
-                                         fluidRow(
-                                           column(3, offset = 9,
-
-                                                  radioButtons(inputId = "display_option",
-                                                               label = "Display:",
-                                                               choices = c("Actual Percent", "Quantile"),
-                                                               selected = "Quantile")
-                                           )),
-                                         plotOutput("us_vaccine_plot2"),
-                                         width=9,
-                                         plotOutput("us_vaccine_barplot_brand", height = 1500),
-                                         tags$br(), tags$br(),tags$br()
-                                       )
-                                     )
-
                             )
                  ),
 
