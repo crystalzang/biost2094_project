@@ -1,4 +1,4 @@
-country,date,daily_vaccinations,population.x,continent,cumsum_total_vaccination,people_vaccinated,people_fully_vaccinated,people_fully_vaccinated_per_million,people_vaccinated_per_million,daily_vaccinated_per_million
+country,date,daily_vaccinations,population,continent,cumsum_total_vaccination,people_vaccinated,people_fully_vaccinated,people_fully_vaccinated_per_million,people_vaccinated_per_million,daily_vaccinated_per_million
 Afghanistan,2021-02-22,0.0,39559326,Asia,0.0,0.0,0.0,0.0,0.0,0.0
 Afghanistan,2021-02-23,1367.0,39559326,Asia,1367.0,1367.0,0.0,0.0,35.0,34.555694907441
 Afghanistan,2021-02-24,1367.0,39559326,Asia,2734.0,2733.0,0.0,0.0,69.0,34.555694907441

@@ -17,12 +17,9 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran.us.r-project.org")
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
-for (pkg in c("tidyverse", "countrycode")) {library(pkg, character.only = TRUE)}
-library(RColorBrewer)
-library(plotly)
-library(Hmisc)
+for (pkg in c("tidyverse", "countrycode","RColorBrewer","plotly","Hmisc")) {library(pkg, character.only = TRUE)}
 #load data
-combine_new <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/clean_3.csv")
+combine_new <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/clean_4.csv")
 combine_continent <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_project/data/combine_continent_new.csv")
 #names(combine_new)[names(combine_new) ==  "population.x" ] <- "population"
 #colnames(combine_new)
@@ -41,7 +38,7 @@ combine_continent <- read_csv("/Users/liling.lu/pitt 2021-spring/2094/biost2094_
 ## assign colours to countries to ensure consistency between plots
 #write.csv(combine_new, "data/clean_3.csv", row.names = F)
 #write.csv(combine_continent, "data/combine_continent_new.csv", row.names = F)
-cls = rep(c(brewer.pal(8,"Dark2"), brewer.pal(10, "Paired"), brewer.pal(12, "Set3"), brewer.pal(8,"Set2"), brewer.pal(9, "Set1"), brewer.pal(8, "Accent"),  brewer.pal(9, "Pastel1"),  brewer.pal(8, "Pastel2")),4)
+cls = rep(c(brewer.pal(8,"Dark2"), brewer.pal(10, "Paired"), brewer.pal(8,"Set2"), brewer.pal(9, "Set1"), brewer.pal(8, "Accent")),4)
 cls_names = c(as.character(unique(combine_new$country)), as.character(unique(combine_continent$continent)))
 country_cols = cls[1:length(cls_names)]
 names(country_cols) = cls_names
@@ -69,8 +66,8 @@ cumulative_vaccinated_plot <- function(combine_new,  plot_start_date) {
     xlab("Date") +
     ylab("Cumulative")+
     geom_line() +
-    geom_point()+
-    scale_colour_manual(values=country_cols) +
+    #geom_point()+
+    #scale_colour_manual(values=country_cols) +
     theme(legend.position = "none") +
     theme(
       legend.title = element_blank(),
@@ -151,6 +148,10 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
              tabPanel(title = "US Vaccine Progress"),
              tabPanel(title = "Reaching Herd Immunity"),
              tabPanel(title = "Worldwide Vaccine Progress",
+                      tags$style(type="text/css",
+                                 ".shiny-output-error { visibility: hidden; }",
+                                 ".shiny-output-error:before { visibility: hidden; }"
+                      ),
                       sidebarLayout(
                         sidebarPanel(
                           #span(tags$i(h6("Reported cases are subject to significant variation in testing policy and capacity between countries.")), style="color:#045a8d"),
@@ -169,8 +170,8 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                       multiple = TRUE),
 
                           pickerInput("outcome_select", "Outcome:",
-                                      choices = c("vaccines(total)", "vaccines(per million)","fully_vaccinated(total)","fully_vaccinated(per million)"),
-                                      selected = c("vaccines(total)"),
+                                      choices = c("People_vaccinated", "People_vaccinated(per million)","fully_vaccinated","fully_vaccinated(per million)"),
+                                      selected = c("People_vaccinated"),
                                       multiple = FALSE),
 
                           sliderInput("minimum_date",
@@ -221,17 +222,17 @@ server <- function(input, output, session) {
       db$region = db$continent
     }
 
-    if (input$outcome_select=="vaccines(total)") {
+    if (input$outcome_select=="People_vaccinated") {
       db$outcome = db$people_vaccinated
       db$daily_outcome = db$daily_vaccinations
     }
 
-    if (input$outcome_select=="vaccines(per million)") {
+    if (input$outcome_select=="People_vaccinated(per million)") {
       db$outcome = db$people_vaccinated_per_million
       db$daily_outcome = db$daily_vaccinated_per_million
     }
 
-   if (input$outcome_select=="fully_vaccinated(total)") {
+   if (input$outcome_select=="fully_vaccinated") {
      db$outcome = db$people_fully_vaccinated
      db$daily_outcome = db$people_fully_vaccinated
    }

@@ -1,7 +1,7 @@
 ---
-title: "05_clean_na"
+title: "06_clean_na"
 author: "Liling Lu"
-date: "4/15/2021"
+date: "4/29/2021"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -11,9 +11,9 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-as.character(United States,India,United Kingdom,Brazil, China, Germany, France)
-
 # Finalized code
+
+#load packages and raw data
 
 ```{r}
 for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "zoo")) {library(pkg, character.only = TRUE)}
@@ -31,41 +31,25 @@ combine$date <- as.Date(combine$date,"%m/%d/%Y")
 
 #fill na for people vaccinated
 
-length(unique(daily_fill$country))
-
-```{r}
+#countries with at least two values (in order to use zoo function)
 countries_1 <- combine%>%
   dplyr::group_by(country)%>%
   dplyr::summarize(people_vaccinations_max = sum(!is.na(people_vaccinated)))%>%
   filter(people_vaccinations_max>2)%>%
   pull(country)
 '%notin%' <- Negate('%in%')
+# countries which don't have at least two values will be filled with zeros
 country_invalid <- combine%>%
   filter(country %notin% countries_1 )
+#subset data set to use zoo to fill na
 combine_new <- combine%>%
   select(country, date, people_vaccinated,population,continent)%>%
   filter(country %in% countries_1)
-#combine_new <- combine_new%>%
-#  dplyr::group_by(country)%>%
-#  dplyr::mutate(first_date = min(date))%>%
-#  dplyr::mutate(first = if_else(date == first_date, T, F))%>%
-#  dplyr::mutate(people_v_missing=if_else(is.na(people_vaccinated), T, F))%>%
-#  dplyr::mutate(people_vaccinated = if_else(first==T & people_v_missing==T, total_vaccinations, #people_vaccinated))%>%
-#  select(-total_vaccinations, -first_date, -first, -daily_v_missing)
-#only 38 entries from 7 countries have missing daily vaccination
-check <- combine_new%>%
-  filter(is.na(people_vaccinated))
-sum(is.na(combine_new$people_vaccinated))
-#no entry has daily vaccination of 0.
-check <- combine_new%>%
-  filter(people_vaccinated==0)
 country_info <- combine_new%>%
   select(country, population,continent)%>%
   distinct()
 combine_new <- combine_new%>%
   select(-population, -continent)
-# france <- combine_new%>%
-#   filter(country=="France")
 combine_new_spread <- combine_new%>%
   spread(key = date, value =people_vaccinated)%>%
   column_to_rownames("country")
@@ -74,89 +58,75 @@ s <- t(apply(combine_new_spread, 1, function(x) na.fill(x, list(0, "extend", "ex
 s <- as.data.frame(s)
 s <- s%>%
   rownames_to_column("country")
+head(s)
 vaccine_people <- gather(s, key = "date", value = "people_vaccinated",-country)
+head(vaccine_people)
 vaccine_people <- left_join(vaccine_people, country_info, by = "country")
 vaccine_people$date <- as.Date(vaccine_people$date,"%Y-%m-%d")
-people_fill <- merge( daily_fill, vaccine_people,by = c("country", "date"),all.x=T)
-```
+people_fill <- left_join(daily_fill, vaccine_people,by = c("country", "date"),all.x=T)
 
-apply(people_fill, 2, function(x) sum(is.na(x)))
 
 #fillna for people_fully_vaccinated
-colnames(combine)
 
-```{r}
+#countries with at least two values (in order to use zoo function)
 countries_2 <- combine%>%
   dplyr::group_by(country)%>%
   dplyr::summarize(people_fully_max = sum(!is.na(people_fully_vaccinated)))%>%
   filter(people_fully_max>2)%>%
   pull(country)
 '%notin%' <- Negate('%in%')
-country_invalid <- combine%>%
+# countries which don't have at least two values will be filled with zeros
+country_invalid_2 <- combine%>%
   filter(country %notin% countries_2 )
-combine_new <- combine%>%
+combine_new_2 <- combine%>%
   select(country, date, people_fully_vaccinated,population,continent)%>%
   filter(country %in% countries_2)
-#combine_new <- combine_new%>%
-#  dplyr::group_by(country)%>%
-#  dplyr::mutate(first_date = min(date))%>%
-#  dplyr::mutate(first = if_else(date == first_date, T, F))%>%
-#  dplyr::mutate(people_v_missing=if_else(is.na(people_vaccinated), T, F))%>%
-#  dplyr::mutate(people_vaccinated = if_else(first==T & people_v_missing==T, total_vaccinations, #people_vaccinated))%>%
-#  select(-total_vaccinations, -first_date, -first, -daily_v_missing)
-#only 38 entries from 7 countries have missing daily vaccination
-check <- combine_new%>%
-  filter(is.na(people_fully_vaccinated))
-sum(is.na(combine_new$people_fully_vaccinated))
-#no entry has daily vaccination of 0.
-check <- combine_new%>%
-  filter(people_fully_vaccinated==0)
-country_info <- combine_new%>%
+#subset cuntry data
+country_info_2 <- combine_new_2%>%
   select(country, population,continent)%>%
   distinct()
-combine_new <- combine_new%>%
+combine_new_2 <- combine_new_2%>%
   select(-population, -continent)
-# france <- combine_new%>%
-#   filter(country=="France")
-combine_new_spread <- combine_new%>%
+combine_new_spread_2 <- combine_new_2%>%
   spread(key = date, value =people_fully_vaccinated)%>%
   column_to_rownames("country")
-dim(combine_new_spread)
-s <- t(apply(combine_new_spread, 1, function(x) na.fill(x, list(0, "extend", "extend"))))
-s <- as.data.frame(s)
-s <- s%>%
+dim(combine_new_spread_2)
+s2 <- t(apply(combine_new_spread_2, 1, function(x) na.fill(x, list(0, "extend", "extend"))))
+s2 <- as.data.frame(s2)
+s2 <- s2%>%
   rownames_to_column("country")
-vaccine_people_fully <- gather(s, key = "date", value = "people_fully_vaccinated",-country)
-vaccine_people_fully <- left_join(vaccine_people_fully, country_info, by = "country")
+vaccine_people_fully <- gather(s2, key = "date", value = "people_fully_vaccinated",-country)
+vaccine_people_fully <- left_join(vaccine_people_fully, country_info_2, by = "country")
 vaccine_people_fully$date <- as.Date(vaccine_people_fully$date,"%Y-%m-%d")
-clean <- merge(people_fill,vaccine_people_fully, by = c('country', 'date'),all.x=T)
-```
+#left join with previous cleaned data
+clean <- left_join(people_fill,vaccine_people_fully, by = c('country', 'date'),all.x=T)
 
-```{r}
-apply(clean, 2, function(x) sum(is.na(x)))
-```
-
-
-```{r}
+#finalize dataset
 clean <- clean %>% select(-c(people_vaccinated.x,population.y,continent.y,population,continent))
 names(clean)[names(clean) ==  "people_vaccinated.y" ] <- "people_vaccinated"
 names(clean)[names(clean) ==  "continent.x" ] <- "continent"
-```
-
- clean[is.na(clean)] <- 0
-
-```{r}
+names(clean)[names(clean) ==  "population.x" ] <- "population"
+clean[is.na(clean)] <- 0
+# Define other varaibles
 clean['people_fully_vaccinated_per_million'] <- (clean$people_fully_vaccinated/clean$population)*1000000
 clean['people_vaccinated_per_million'] <- (clean$people_vaccinated/clean$population)*1000000
 clean['daily_vaccinated_per_million'] <- (clean$daily_vaccinations/clean$population)*1000000
-```
-
-```{r}
+#check missingness
 apply(clean, 2, function(x) sum(is.na(x)))
-```
-
-
-```{r}
-write.csv(clean, "data/clean_3.csv", row.names = F)
-```
-
+#save dataset
+#write.csv(clean, "data/clean_3.csv", row.names = F)
+#group by continent
+combine_continent<-clean%>%
+  select(continent,date,people_fully_vaccinated,people_fully_vaccinated_per_million,
+         people_vaccinated,people_vaccinated_per_million,
+         daily_vaccinations, daily_vaccinated_per_million)%>%
+  group_by(date,continent)%>%
+  summarise(people_fully_vaccinated = sum(people_fully_vaccinated),
+            people_fully_vaccinated_per_million = sum(people_fully_vaccinated_per_million),
+            people_vaccinated=sum(people_vaccinated),
+            daily_vaccinations=sum(daily_vaccinations),
+            daily_vaccinated_per_million=sum(daily_vaccinated_per_million),
+            people_vaccinated_per_million=sum(people_vaccinated_per_million))
+apply(combine_continent_1, 2, function(x) sum(is.na(x))) 
+#save to dataset
+#write.csv(combine_continent, "data/combine_continent_new.csv", row.names = F)
