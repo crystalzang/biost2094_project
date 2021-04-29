@@ -24,6 +24,7 @@ library(ggplot2)
 library(dygraphs)
 library(countrycode)
 library(dplyr)
+library(zoo)
 ```
 
 # Data Import
@@ -132,7 +133,16 @@ ggplot(aggregate_recovered_continent, aes(log(x), y=Group.1, fill=Group.1)) +
 # Merge vaccine and daily_coronavirus
 
 ```{r}
-vac_daily <- merge(coronavirus_daily, vaccine, by=c("country", "date"))
+coronavirus_daily$iso_code <- countrycode(coronavirus_daily$country, 'country.name','iso3c')
+coronavirus_daily <- select(coronavirus_daily, -country)
+
+vac_daily <- merge(coronavirus_daily, combine, by=c("iso_code", "date"))
+vac_daily$rolling_mean_active <- rollmean(vac_daily$active_cases.x, k = 3, fill = NA)
+#vac_daily$rolling_mean_death <- rollmean(vac_daily$daily_new_deaths, k = 3, fill = NA)
+vac_daily$rolling_mean_vac <- rollmean(vac_daily$daily_vaccinations, k = 3, fill = NA)
+gathered_data <- vac_daily %>% 
+                 gather("case_vac_group", "case_vac", 32:33, -date) %>% 
+                 select(iso_code, date, case_vac_group, case_vac)
 ```
 
 
@@ -194,19 +204,6 @@ library(janitor)
 ```
 
 ```{r}
-rm(list = ls())
-
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
-
-coronavirus_summary <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_summary.csv")
-coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
-coronavirus_summary <- select(coronavirus_summary, -country)
-vaccine <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/vaccinations.csv")
-name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
-combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
-coronavirus_daily <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_daily.csv")
-vac_daily <- merge(coronavirus_daily, vaccine, by=c("country", "date"))
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  # First Page
@@ -256,36 +253,37 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                               # Options to select population
                               selectInput("countrylist",
                                             label = h4("Country"),
-                                            choices = vac_daily %>% drop_na(date, active_cases) %>% select(country),
-                                            selected = "Afghanistan")),
+                                            choices = vac_daily %>% drop_na(date, rolling_mean_active,rolling_mean_vac) %>% select(iso_code),
+                                            selected = "iso_code")),
                           mainPanel(plotOutput("countryplot"), plotOutput("countryplot2"), plotOutput("countryplot3"))
                           )
                           ))
 
 server <- function(input, output) {
 
-  output$countryplot <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>% 
-                                          drop_na(active_cases), 
-                                          aes(date, active_cases))
-                                  + geom_point(color="red", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                     theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                           axis.title.x = element_blank()) +
-                                     labs(title = as.character(input$countrylist), y = "Active Cases"))
-  output$countryplot2 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>% 
-                                          drop_na(daily_vaccinations), 
-                                          aes(date, daily_vaccinations))
-                                  + geom_point(color="green", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                     theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                           axis.title.x = element_blank()) +
-                                     labs(y = "Daily Vaccinations"))
-  output$countryplot3 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>% 
-                                          drop_na(total_vaccinations), 
-                                          aes(date, total_vaccinations))
-                                  + geom_point(color="purple", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                     theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                           axis.title.x = element_blank()) +
-                                     labs(y = "Total Vaccinations")
-  )
+  output$countryplot <- renderPlot(ggplot(gathered_data %>%
+                                          filter(iso_code==input$countrylist),
+                                          aes(x = date, y = case_vac)) + 
+                                          geom_line(aes(group=case_vac_group, color = case_vac_group, linetype = case_vac_group, lwd=.2)) + 
+                                          scale_color_manual(values = c("darkred", "steelblue")) + theme_bw() +
+                                          theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1),
+                                                axis.title.x = element_blank()) +
+                                          labs(title = "Rolling 3-Day Average", y = "Number of People", caption = as.character(input$countrylist)))
+  #output$countryplot2 <- renderPlot(ggplot(vac_daily %>% filter(iso_code==input$countrylist) %>% 
+   #                                       drop_na(daily_vaccinations), 
+    #                                      aes(date, daily_vaccinations)) +
+     #                                     geom_line(group=1, color="black") + theme_bw() +
+      #                                    theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
+       #                                   axis.title.x = element_blank()) +
+        #                                  labs(y = "Vaccinations"))
+  #output$countryplot3 <- renderPlot(ggplot(vac_daily %>% filter(iso_code==input$countrylist) %>% 
+   #                                       drop_na(rolling_mean_death), 
+    #                                      aes(date, rolling_mean_death))
+     #                             + geom_point(color="purple", size=5) + geom_line(group=1, color="black") + theme_bw() +
+      #                               theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
+       #                                    axis.title.x = element_blank()) +
+        #                             labs(y = "Daily New Deaths"))
+  
 }
 
 # Run the app ----

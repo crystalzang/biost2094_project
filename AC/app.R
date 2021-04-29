@@ -17,20 +17,64 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran.us.r-project.org")
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(countrycode)) install.packages("countrycode", repos = "http://cran.us.r-project.org")
 
-rm(list = ls())
 
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode")) {library(pkg, character.only = TRUE)}
 
-coronavirus_summary <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_summary.csv")
-coronavirus_summary$iso_code <- countrycode(coronavirus_summary$country, 'country.name','iso3c')
-coronavirus_summary <- select(coronavirus_summary, -country)
-vaccine <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/vaccinations.csv")
-name_list <- c("OWID_ENG", "OWID_NIR", "OWID_SCT", "OWID_WLS")
-vaccine$iso_code <- with(vaccine, replace(iso_code, iso_code %in% name_list, "GBR"))
-combine <- merge(vaccine, coronavirus_summary, by="iso_code", all.x=T)
+#Import & Clean Data
+
+
 coronavirus_daily <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_daily.csv")
-vac_daily <- merge(coronavirus_daily, vaccine, by=c("country", "date"))
+cleaned_data <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/clean_3.csv")
+
+
+cleaned_data$iso_code <- countrycode(cleaned_data$country, 'country.name','iso3c')
+cleaned_data <- select(cleaned_data, -country)
+
+
+coronavirus_daily$iso_code <- countrycode(coronavirus_daily$country, 'country.name','iso3c')
+coronavirus_daily[is.na(coronavirus_daily)] <- 0
+coronavirus_daily$date <- format(as.Date(coronavirus_daily$date,"%m/%d/%Y"))
+coronavirus_daily <- select(coronavirus_daily, -country)
+
+vds <- inner_join(cleaned_data, coronavirus_daily, by = c("date", "iso_code"))
+
+
+
+#Gather & Aggregate Data
+
+
+gathered_data <- vds %>%
+  gather("case_vac_group", "case_vac", c(2, 13, 16), -date) %>%
+  select(iso_code, date, case_vac_group, case_vac)
+
+aggregated_cases <- aggregate(vds$daily_new_cases, by = list(vds$date, vds$continent), sum) %>% rename(new = x, date = Group.1, continent = Group.2)
+aggregated_cases2 <- aggregate(vds$daily_new_deaths, by = list(vds$date, vds$continent), sum) %>% rename (deaths = x, date = Group.1, continent = Group.2)
+aggregated_cases3 <- aggregate(vds$daily_vaccinations, by = list(vds$date, vds$continent), sum) %>% rename(vaccs = x, date = Group.1, continent = Group.2)
+
+agr <- merge(aggregated_cases, aggregated_cases2, by=c("date", "continent"))
+agr <- merge(agr, aggregated_cases3, by=c("date", "continent"))
+
+
+gather2 <- agr %>% gather("case_group", "total_cases", 3:5, -continent, -date) %>% select(continent, date, case_group, total_cases)
+
+
+
+
+gathered_data$factored <- factor(gathered_data$case_vac_group,
+                                 levels = c("daily_vaccinations", "daily_new_deaths", "daily_new_cases"),
+                                 labels = c("Vaccinations", "New Deaths", "New Cases"))
+
+gather2$factored <- factor(gather2$case_group,
+                           levels = c("vaccs", "deaths", "new"),
+                           labels = c("Vaccinations", "New Deaths", "New Cases"))
+
+gathered_data$country <- countrycode(gathered_data$iso_code, 'iso3c', 'country.name')
+
+
+
+#Shiny Tab
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  # First Page
@@ -63,7 +107,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           br(),
                           "Alexis Cenname",
                           br(),
-                          "Henry Thrope",
+                          "Henry Thorpe",
                           br(),
                           br(),
                           br(),
@@ -73,44 +117,94 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                  tabPanel(title = "Worldwide Vaccine Progress"),
                  tabPanel(title = "Vaccine Progress Map"),
                  tabPanel(title = "US Vaccine Progress"),
-                 tabPanel(title = "Reaching Herd Immunity",
-                          sidebarLayout(
-                            sidebarPanel(
-
-                              # Options to select population
-                              selectInput("countrylist",
-                                          label = h4("Country"),
-                                          choices = vac_daily %>% drop_na(date, active_cases) %>% select(country),
-                                          selected = "Afghanistan")),
-                            mainPanel(plotOutput("countryplot"), plotOutput("countryplot2"), plotOutput("countryplot3"))
-                          )
+                 navbarMenu(title = "Reaching Herd Immunity",
+                            tabPanel(title = "Country Stats",
+                                     sidebarLayout(
+                                       sidebarPanel(
+                                         selectInput("countrylist",
+                                                     label = h4("Country"),
+                                                     choices = gathered_data %>% select(country),
+                                                     selected = "iso_code"),
+                                         dateRangeInput("date1", label="Date Range:",
+                                                        start = as.character(gathered_data %>% filter(country == "Afghanistan") %>%
+                                                                               filter(date == min(date)) %>% distinct(date)),
+                                                        end = as.character(gathered_data %>% filter(country == "Afghanistan") %>%
+                                                                             filter(date == max(date)) %>% distinct(date)),
+                                                        min = as.character(gathered_data %>%
+                                                                             filter(date == min(date)) %>% distinct(date)),
+                                                        max = as.character(gathered_data %>%
+                                                                             filter(date == max(date)) %>% distinct(date)),
+                                                        startview = "year", separator = " - ")),
+                                       mainPanel(plotlyOutput("countryplot", width = "100%", height = "100%"))
+                                     )),
+                            tabPanel(title="Continent Stats",
+                                     sidebarLayout(
+                                       sidebarPanel(
+                                         selectInput("continentlist",
+                                                     label = h4("Continent"),
+                                                     choices = gather2 %>% select(continent),
+                                                     selected = "continent"),
+                                         dateRangeInput("date", label="Date Range:",
+                                                        start = as.character(gather2 %>% filter(continent == "Europe") %>%
+                                                                               filter(date == min(date)) %>% distinct(date)),
+                                                        end = as.character(gather2 %>% filter(continent == "Europe") %>%
+                                                                             filter(date == max(date)) %>% distinct(date)),
+                                                        min = as.character(gather2 %>%
+                                                                             filter(date == min(date)) %>% distinct(date)),
+                                                        max = as.character(gather2 %>%
+                                                                             filter(date == max(date)) %>% distinct(date)),
+                                                        startview = "year", separator = " - ")),
+                                       mainPanel(plotlyOutput("continentplot", width = "100%", height = "100%")
+                                       )
+                                     ))
                  ))
 
-server <- function(input, output) {
 
-  output$countryplot <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
-                                            drop_na(active_cases),
-                                          aes(date, active_cases))
-                                   + geom_point(color="red", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                     theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                           axis.title.x = element_blank()) +
-                                     labs(title = as.character(input$countrylist), y = "Active Cases"))
-  output$countryplot2 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
-                                             drop_na(daily_vaccinations),
-                                           aes(date, daily_vaccinations))
-                                    + geom_point(color="green", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                      theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                            axis.title.x = element_blank()) +
-                                      labs(y = "Daily Vaccinations"))
-  output$countryplot3 <- renderPlot(ggplot(vac_daily %>% filter(country==input$countrylist) %>%
-                                             drop_na(total_vaccinations),
-                                           aes(date, total_vaccinations))
-                                    + geom_point(color="purple", size=5) + geom_line(group=1, color="black") + theme_bw() +
-                                      theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust=1), legend.position = "none",
-                                            axis.title.x = element_blank()) +
-                                      labs(y = "Total Vaccinations")
-  )
+
+server <- function(input, output, session) {
+
+  {observeEvent(input$countrylist, {
+    updateDateRangeInput(session, "date1", start = as.character(gathered_data %>% filter(country==input$countrylist) %>%
+                                                                  filter(date == min(date)) %>% distinct(date)),
+                         end = as.character(gathered_data %>% filter(country==input$countrylist) %>%
+                                              filter(date == max(date)) %>% distinct(date)))})}
+
+  {observeEvent(input$continentlist, {
+    updateDateRangeInput(session, "date", start = as.character(gather2 %>% filter(continent==input$continentlist) %>%
+                                                                 filter(date == min(date)) %>% distinct(date)),
+                         end = as.character(gather2 %>% filter(continent==input$continentlist) %>%
+                                              filter(date == max(date)) %>% distinct(date)))})}
+
+  output$countryplot <- renderPlotly(
+    plot_ly(gathered_data %>%
+              filter(country==input$countrylist, date>=input$date1[1] & date<=input$date1[2], case_vac != 0),
+            x = ~date,
+            y = ~case_vac,
+            name = ~factored, type = 'scatter',
+            mode = "lines+markers", color=~factored,
+            colors = c("green", "black", "red")) %>%
+      layout(hovermode = "x unified",
+             title = as.character(input$countrylist),
+             xaxis = list(title=FALSE), yaxis = list(title="log(Number of People)", type="log",
+                                                     tickmode="auto", nticks = 3)))
+  output$continentplot <- renderPlotly(plot_ly(gather2 %>%
+                                                 filter(continent==input$continentlist, date>=input$date[1] & date<=input$date[2],total_cases != 0),
+                                               x = ~date,
+                                               y = ~total_cases,
+                                               name = ~factored, type = 'scatter',
+                                               mode = 'lines+markers', color=~factored,
+                                               colors = c("green", "black", "red")) %>%
+                                         layout(hovermode = "x unified",
+                                                title = as.character(input$continentlist),
+                                                xaxis = list(title=FALSE), yaxis = list(title="log(Number of People)", type="log",
+                                                                                        tickmode="auto", nticks = 6)))
+
 }
+
+
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
+
+
+
