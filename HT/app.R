@@ -37,7 +37,6 @@ total_vax <- vaccines %>% group_by(iso) %>% summarize(max3 = max(cumsum_total_va
 total <- inner_join(vax_max, countries, by = "iso")
 total2 <- inner_join(country_pops, total, by = "iso")
 total3 <- inner_join(total_vax, total2, by = "iso")
-total3 <- total3[-c(54, 82), ]
 
 
 leafletmap <- leaflet(worldcountry) %>%
@@ -52,13 +51,15 @@ leafletmap <- leaflet(worldcountry) %>%
                                  "Percent Fully Vaccinated:", round(total3$max/total3$max2*100, digits = 2), "%", "<br>",
                                  "Total Vaccines Administered:", prettyNum(total3$max3,big.mark=",", preserve.width="none", round = 0)))
 
+leafletmap
+
 # Putting the map into the ui
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
-                   # First Page
-                   tabPanel(title = "About the site",
-                            tags$br(),tags$br(),tags$h4("Background"),
-                            "SARS-CoV-2 has impacted the world in an unprecedented way,
+                 # First Page
+                 tabPanel(title = "About the site",
+                          tags$br(),tags$br(),tags$h4("Background"),
+                          "SARS-CoV-2 has impacted the world in an unprecedented way,
                       with the world having changed significantly since H2N2/H3N2
                       pandemics in the mid 1900’s and even more since the major comparison
                       point, the 1918 flu pandemic. The world is much more global now.
@@ -67,31 +68,44 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                       last year of the H3N2 pandemic. In comparison to 1919, that number goes
                       all the way to 53 times as much as shipped in 2014 (Beltekian). As such,
                       returning to normalcy is a worldwide goal.",
-                            tags$br(),tags$br(),
-                            "Right now, the main indicator
+                          tags$br(),tags$br(),
+                          "Right now, the main indicator
                       we have is the vaccination rate for each country, each of which has its
                       own unique situation and challenges to account for, so viewing that data
                       quickly and clearly is an important piece to know how close we are to the
                       end of the pandemic.",
 
-                            tags$br(),tags$br(),tags$h4("Code"),
-                            "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
-                   ),
-                 tabPanel(title = "Worldwide Vaccine Progress"),
-                 tabPanel(title = "Vaccine Progress Map",
-                          div(class="outer",
-                              tags$head(includeCSS("styles.css")),
-                              leafletOutput("leafletmap", width="100%", height="100%"),
-                              ),
+                          tags$br(),tags$br(),tags$h4("Code"),
+                          "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
 
+                          tags$br(),tags$br(),tags$h4("Contributor"),
+                          br(),
+                          "Crystal Zang",
+                          br(),
+                          "Liling Liu",
+                          br(),
+                          "Alexis Cenname",
+                          br(),
+                          "Henry Thorpe",
+                          br(),
+                          br(),
+                          br(),
+                          br(),
+                          br(),
+                          img(src = "logo.jpeg",height = 130, width=250 )),
+                 tabPanel(title = "Worldwide Vaccine Progress"
                  ),
+                 tabPanel(title = "Vaccine Progress Map",
+                          leafletOutput("mymap")),
                  tabPanel(title = "US Vaccine Progress"),
                  tabPanel(title = "Reaching Herd Immunity")
 )
 
 
 # Define server logic ----
-server <- function(input, output) {}
+server <- function(input, output) {
+  output$mymap <- renderLeaflet({leafletmap})
+}
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
