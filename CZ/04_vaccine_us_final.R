@@ -1,6 +1,6 @@
 
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc", "tidyselect","USAboundaries"))
-  {library(pkg, character.only = TRUE)}
+# for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc", "tidyselect","USAboundaries"))
+#   {library(pkg, character.only = TRUE)}
 
 # read in data
 vaccine_us <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccine_us.csv")
