@@ -48,7 +48,17 @@ total_vax <- vaccines %>% dplyr::group_by(iso) %>% dplyr::summarize(max3 = max(c
 total <- inner_join(vax_max, countries, by = "iso")
 total2 <- inner_join(country_pops, total, by = "iso")
 total3 <- inner_join(total_vax, total2, by = "iso")
-
+leafletmap <- leaflet(worldcountry) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(lng = total3$CapitalLongitude,
+                   lat = total3$CapitalLatitude,
+                   radius = round(total3$max/total3$max2*30, digits = 2),
+                   label = total3$CountryName,
+                   popup = paste("<strong>", total3$CountryName, "</strong>", "<br>",
+                                 "Population:", prettyNum(total3$max2, big.mark="," , preserve.width="none"), "<br>",
+                                 "People Fully Vaccinated:", prettyNum(total3$max,big.mark=",", preserve.width="none"), "<br>",
+                                 "Percent Fully Vaccinated:", round(total3$max/total3$max2*100, digits = 2), "%", "<br>",
+                                 "Total Vaccines Administered:", prettyNum(total3$max3,big.mark=",", preserve.width="none", round = 0)))
 
 # Liling
 #load data
@@ -162,9 +172,9 @@ gather2$factored <- factor(gather2$case_group,
 gathered_data$country <- countrycode(gathered_data$iso_code, 'iso3c', 'country.name')
 
 #Crystal --US
+suppressWarnings(expr)
 source("CZ/04_vaccine_us_final.R")
 
-colours <- c("#E5F2DF", "#95C182", "#3F8127", "#1F5208")
 suppressWarnings(expr)
 plot1 <- function(data=us_states_vaccine, pop="18+", vstatus = "fully vaccinated"){
   ggplot(data = filter(data, population== pop, status == vstatus),
@@ -273,9 +283,7 @@ plot2.barplot <- function(data, vbrand){
 
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  tabPanel(title = "Vaccine Progress Map",
-                            leafletOutput("mymap", width="100%", height="100%")
-
-                          ),
+                          leafletOutput("mymap")),
                  tabPanel(title = "Worldwide Vaccine Progress",
                           tags$style(type="text/css",
                                      ".shiny-output-error { visibility: hidden; }",
@@ -482,19 +490,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 # Define server ----
 server <- function(input, output, session) {
   #Henry
-  output$map <- renderLeaflet({
-      leaflet(worldcountry) %>%
-      addProviderTiles(providers$CartoDB.Positron) %>%
-      addCircleMarkers(lng = total3$CapitalLongitude,
-                       lat = total3$CapitalLatitude,
-                       radius = round(total3$max/total3$max2*30, digits = 2),
-                       label = total3$CountryName,
-                       popup = paste("<strong>", total3$CountryName, "</strong>", "<br>",
-                                     "Population:", prettyNum(total3$max2, big.mark="," , preserve.width="none"), "<br>",
-                                     "People Fully Vaccinated:", prettyNum(total3$max,big.mark=",", preserve.width="none"), "<br>",
-                                     "Percent Fully Vaccinated:", round(total3$max/total3$max2*100, digits = 2), "%", "<br>",
-                                     "Total Vaccines Administered:", prettyNum(total3$max3,big.mark=",", preserve.width="none", round = 0)))
-  })
+  output$mymap <- renderLeaflet({leafletmap})
 
   #Liling -- World Vaccination
   # Update region selections
@@ -596,7 +592,7 @@ server <- function(input, output, session) {
                                                 xaxis = list(title=FALSE), yaxis = list(title="log(Number of People)", type="log",
                                                                                         tickmode="auto", nticks = 6)))
 
-#Crystal
+######## Crystal
   output$us_vaccine_plot <- renderPlot({
     if (input$display_option_p1 == "Actual Percent"){
       p1 <- plot1(us_states_vaccine, pop=input$pop, vstatus = input$vstatus)

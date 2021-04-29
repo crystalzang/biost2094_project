@@ -3,7 +3,7 @@
 #   {library(pkg, character.only = TRUE)}
 
 # read in data
-vaccine_us <- read_csv("/Users/czang/Documents/2021Spring/R/biost2094_project/data/vaccine_us.csv")
+vaccine_us <- read_csv("data/vaccine_us.csv")
 # clean varaible names
 vaccine_us <- vaccine_us%>%
   clean_names()
@@ -237,6 +237,8 @@ capFirst <- function(s) {
 }
 
 
+#plot
+colours <- c("#E5F2DF", "#95C182", "#3F8127", "#1F5208")
 
 barplot_us <- function( pop=pop){
 
@@ -247,10 +249,14 @@ barplot_us <- function( pop=pop){
     left_join(state, by = c("state" = "state_name"))%>%
     filter(jurisdiction_type %in% c("state", "district"))%>%
     dplyr::select(-jurisdiction_type)%>%
-    arrange(desc(fully_vaccinated))%>%
-    mutate(state = factor(state, levels=state))
+    dplyr::arrange(fully_vaccinated)
+  #  mutate(state = factor(state, levels=state))%>%
+   #dplyr::mutate(state = fct_inorder(state))
+
+  vaccine_us_long_edit$state <- factor(vaccine_us_long_edit$state, levels =vaccine_us_long_edit$state)
 
   vaccine_us_long_edit$state <- str_to_title(vaccine_us_long_edit$state)
+levels(vaccine_us_long_edit$state) <- vaccine_us_long_edit$state
 
   ggplot(vaccine_us_long_edit)+
     theme_classic() +
@@ -268,22 +274,22 @@ barplot_us <- function( pop=pop){
 
     # add a point for each fully vaccinated rate
     geom_point(aes(x = fully_vaccinated, y = state),
-               size = 11, col = colours[4]) +
+               size = 11, col = colours[2]) +
     # add a point for each partially vaccinated rate
     geom_point(aes(x = at_least_one_dose, y = state),
-               size = 11, col = colours[2]) +
+               size = 11, col = colours[4]) +
     # add the text (%) for each pfizer success rate
     geom_text(aes(x = fully_vaccinated, y = state,
                   label = paste0(round(fully_vaccinated, 1.3))),
-              col = "white") +
+              col = "black") +
     # add the text (%) for each moderna success rate
     geom_text(aes(x = at_least_one_dose, y = state,
                   label = paste0(round(at_least_one_dose, 1.3))),
-              col = "black")+
+              col = "white")+
     # add a label above the first two points
     geom_text(aes(x = x, y = y, label = label, col = label),
               data.frame(x = c(40, 55), y = 54,
-                         label = c("Fully Vaccinated", "At Least One Dose")), size = 6) +
+                         label = c( "Fully Vaccinated","At Least One Dose")), size = 6) +
     scale_color_manual(values = c(colours[4], colours[2]), guide = "none")  +
     # manually set the spacing above and below the plot
     scale_y_discrete(expand = c(0.1, 0)) +
@@ -292,6 +298,7 @@ barplot_us <- function( pop=pop){
                        labels = c("0%", "15%", "30%", "45%","60%","75%"))
 }
 
+barplot_us(pop="18+")
 
 barplot_brand <- function(vaccine_brand){
   vaccine_brand_edit <-  vaccine_brand%>%
