@@ -23,6 +23,8 @@ if(!require(janitor)) install.packages("janitor", repos = "http://cran.us.r-proj
 if(!require(tidyr)) install.packages("tidyr", repos = "http://cran.us.r-project.org")
 if(!require(Hmisc)) install.packages("Hmisc", repos = "http://cran.us.r-project.org")
 if(!require(tidyselect)) install.packages("tidyselect", repos = "http://cran.us.r-project.org")
+if(!require(USAboundaries)) install.packages("USAboundaries", repos = "http://cran.us.r-project.org")
+if(!require(tools)) install.packages("tools", repos = "http://cran.us.r-project.org")
 
 
 
@@ -44,7 +46,11 @@ plot1 <- function(data=us_states_vaccine, pop="18+", vstatus = "fully vaccinated
     theme(legend.title = element_text( size = 18),
           legend.text = element_text(size = 13),
           plot.title = element_text(size=18))+
-    labs(fill = "Percent (%)")
+    labs(fill = "Percent (%)")+
+    with(centroids,
+         annotate(geom="text", x = long, y=lat, label = abb,
+                  size = 4,color="white",family="Times")
+    )
 }
 
 plot1.quantile <- function(data=us_states_vaccine, pop="18+", vstatus = "fully vaccinated"){
@@ -60,7 +66,11 @@ plot1.quantile <- function(data=us_states_vaccine, pop="18+", vstatus = "fully v
           legend.text = element_text(size = 13),
           plot.title = element_text(size=18))+
     labs(fill = "Percent (%)")+
-    scale_fill_manual(values = colours)
+    scale_fill_manual(values = colours)+
+    with(centroids,
+         annotate(geom="text", x = long, y=lat, label = abb,
+                  size = 4,color="white",family="Times")
+    )
 }
 
 plot2 <- function(data = us_states_brand, vbrand = vbrand){
@@ -79,7 +89,11 @@ plot2 <- function(data = us_states_brand, vbrand = vbrand){
     theme(legend.title = element_text( size = 18),
           legend.text = element_text(size = 13),
           plot.title = element_text(size=18))+
-    labs(fill = "Percent (%)")
+    labs(fill = "Percent (%)")+
+    with(centroids,
+         annotate(geom="text", x = long, y=lat, label = abb,
+                  size = 4,color="white",family="Times")
+    )
 }
 
 plot2.quantile <- function(data , vbrand = vbrand){
@@ -97,9 +111,30 @@ plot2.quantile <- function(data , vbrand = vbrand){
           legend.text = element_text(size = 13),
           plot.title = element_text(size=18))+
     labs(fill = "Percentage Quantile") +
-    scale_fill_manual(values = colours)
+    scale_fill_manual(values = colours)+
+    with(centroids,
+         annotate(geom="text", x = long, y=lat, label = abb,
+                  size = 4,color="white",family="Times")
+    )
 }
 
+plot2.barplot <- function(data, vbrand){
+  state <- state_codes
+  state$state_name <-  tolower(state$state_name)
+
+  data_i <-data%>%
+    filter(brand == vbrand)%>%
+    left_join(state, by = c("state" = "state_name"))%>%
+    filter(jurisdiction_type %in% c("state", "district"))%>%
+    arrange(percent)%>%
+    mutate(state = factor(state, levels=state))
+
+  ggplot(data_i, aes(x = state, y=percent, fill = percent))+
+    geom_bar(stat="identity") +
+    coord_flip()+
+    theme_classic()+
+    geom_text(aes(label = percent), vjust = -0.3,size = 3)
+}
 
 #########################################
 ui <- navbarPage(
@@ -140,7 +175,7 @@ ui <- navbarPage(
                           br(),
                           br(),
                           br(),
-                          img(src = "www/logo.jpeg",height = 130, width=250)),
+                          img(src = "/Users/czang/Documents/2021Spring/R/biost2094_project/www/logo.jpeg",height = 130, width=250)),
                  tabPanel(title = "Worldwide Vaccine Progress"),
                  tabPanel(title = "Vaccine Progress Map"),
                  navbarMenu(title = "US Vaccine Progress",
@@ -182,7 +217,9 @@ ui <- navbarPage(
                                                   selected = "Actual Percent")
                               )),
                             plotOutput("us_vaccine_plot"),
-                            width=9
+                            width=9,
+                            plotOutput("us_vaccine_barplot_pop", height = 1500),
+                            tags$br(), tags$br(),tags$br()
                           )
                           )
                           ),
@@ -212,8 +249,9 @@ ui <- navbarPage(
                                                        selected = "Quantile")
                                    )),
                                  plotOutput("us_vaccine_plot2"),
-                                 width=9
-
+                                 width=9,
+                                 plotOutput("us_vaccine_barplot_brand", height = 1500),
+                                 tags$br(), tags$br(),tags$br()
                                )
                              )
 
@@ -253,6 +291,15 @@ server <- function(input, output) {
 
   })
 
+  output$us_vaccine_barplot_pop <- renderPlot({
+    barplot_us(pop=input$pop)
+  })
+
+  output$us_vaccine_barplot_brand <- renderPlot({
+
+     barplot_brand(vaccine_brand)
+
+  })
 
   }
 
