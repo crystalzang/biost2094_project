@@ -17,34 +17,40 @@ if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.
 if(!require(shinyWidgets)) install.packages("shinyWidgets", repos = "http://cran.us.r-project.org")
 if(!require(shinydashboard)) install.packages("shinydashboard", repos = "http://cran.us.r-project.org")
 if(!require(shinythemes)) install.packages("shinythemes", repos = "http://cran.us.r-project.org")
+if(!require(sp)) install.packages("sp", repos = "http://cran.us.r-project.org")
+if(!require(countrycode)) install.packages("countrycode", repos = "http://cran.us.r-project.org")
 
-# building the map
+worldcountry <- geojson_read("C:/Users/hthor/OneDrive/Documents/GitHub/biost2094_project/data/custom.geo.json", what = "sp")
+countries <- read.csv("C:/Users/hthor/OneDrive/Documents/GitHub/biost2094_project/data/concap.csv")
+vaccines <- read.csv("C:/Users/hthor/OneDrive/Documents/GitHub/biost2094_project/data/clean_3.csv")
 
-countries_map <- geojson_read("data/custom.geo.json", what = "sp")
-
-# count data for map
-
-vaccines <- read.csv("data/clean.csv")
-
-current_date <- as.Date(max(vaccines$date),"%Y-%m-%d")
-
-vax_today <- subset(vaccines, date==current_date)
+vaccines$iso <- countrycode(vaccines$country, 'country.name','iso3c')
+countries$iso <- countrycode(countries$CountryName, 'country.name','iso3c')
 
 
-country_vaccine_count <- vax_today %>% filter(alpha3 %in% countries$ADM0_A3)
-if (all(cv_large_countries$alpha3 %in% countries$ADM0_A3)==FALSE) { print("Error: inconsistent country names")}
-country_vaccine_count = country_vaccine_count[order(cv_large_countries$alpha3),]
+vax_max <- vaccines %>% group_by(iso) %>% summarize(max = max(people_vaccinated))
+country_pops <- vaccines %>% group_by(iso) %>% summarize(max2 = max(population.x))
+total_vax <- vaccines %>% group_by(iso) %>% summarize(max3 = max(cumsum_total_vaccination))
 
-bins <-  c(0,10,50,100,500,1000,Inf)
-vax_colors <- colorBin("Oranges", domain = country_vaccine_count$cases_per_million, bins = bins)
-plot_map <- countries[countries$ADM0_A3 %in% country_vaccine_count$alpha3, ]
 
-basemap <- leaflet(plot_map) %>%
-  addTiles() %>%
+
+total <- inner_join(vax_max, countries, by = "iso")
+total2 <- inner_join(country_pops, total, by = "iso")
+total3 <- inner_join(total_vax, total2, by = "iso")
+total3 <- total3[-c(54, 82), ]
+
+
+leafletmap <- leaflet(worldcountry) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  fitBounds(~-100,-60,~60,70) %>%
-  addLegend("bottomright", pal = cv_pal, values = ~country_vaccine_count$,
-            title = "<small></small>")
+  addCircleMarkers(lng = total3$CapitalLongitude,
+                   lat = total3$CapitalLatitude,
+                   radius = round(total3$max/total3$max2*30, digits = 2),
+                   label = total3$CountryName,
+                   popup = paste("<strong>", total3$CountryName, "</strong>", "<br>",
+                                 "Population:", prettyNum(total3$max2, big.mark="," , preserve.width="none"), "<br>",
+                                 "People Fully Vaccinated:", prettyNum(total3$max,big.mark=",", preserve.width="none"), "<br>",
+                                 "Percent Fully Vaccinated:", round(total3$max/total3$max2*100, digits = 2), "%", "<br>",
+                                 "Total Vaccines Administered:", prettyNum(total3$max3,big.mark=",", preserve.width="none", round = 0)))
 
 # Putting the map into the ui
 
@@ -75,22 +81,9 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                  tabPanel(title = "Vaccine Progress Map",
                           div(class="outer",
                               tags$head(includeCSS("styles.css")),
-                              leafletOutput("mymap", width="100%", height="100%"),
-
-                              absolutePanel(id = "controls", class = "panel panel-default",
-                                            bottom = 75, left = 55, width = 400, fixed=TRUE,
-                                            draggable = TRUE, height = "auto",
-
-                                            sliderTextInput("plot_date",
-                                                            label = h5("Date"),
-                                                            choices = format(unique(cv_cases$date), "%d %b %y"),
-                                                            selected = format(current_date, "%d %b %y"),
-                                                            grid = FALSE,
-                                                            animate=animationOptions(interval = 3000, loop = FALSE))
-
+                              leafletOutput("leafletmap", width="100%", height="100%"),
                               ),
 
-                          )
                  ),
                  tabPanel(title = "US Vaccine Progress"),
                  tabPanel(title = "Reaching Herd Immunity")
@@ -98,23 +91,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 
 
 # Define server logic ----
-server <- function(input, output) {
-  output$mymap <- renderLeaflet({
-    basemap
-  })
-
-  observeEvent(input$plot_date, {
-  leafletProxy("mymap") %>%
-    clearMarkers() %>%
-    clearShapes() %>%
-
-    addCircleMarkers(data = reactive_db(), lat = ~ latitude, lng = ~ longitude, weight = 1, radius = ~(cases)^(1/5.5),
-                     fillOpacity = 0.1, color = covid_col, group = "2019-COVID (cumulative)",
-                     label = sprintf("<strong>%s (cumulative)</strong><br/>Confirmed cases: %g<br/>Deaths: %d<br/>Cases per million: %g<br/>Deaths per million: %g", reactive_db()$country, reactive_db()$cases, reactive_db()$deaths, reactive_db()$cases_per_million, reactive_db()$deaths_per_million) %>% lapply(htmltools::HTML),
-                     labelOptions = labelOptions(
-                       style = list("font-weight" = "normal", padding = "3px 8px", "color" = covid_col),
-                       textsize = "15px", direction = "auto")) %>%  addPolygons(data = reactive_polygons(), stroke = FALSE, smoothFactor = 0.1, fillOpacity = 0.15, fillColor = ~cv_pal(reactive_db_large()$deaths_per_million))}
-)}
+server <- function(input, output) {}
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
