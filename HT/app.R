@@ -91,7 +91,9 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 
 
 # Define server logic ----
-server <- function(input, output) {}
+server <- function(input, output) {
+
+}
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
