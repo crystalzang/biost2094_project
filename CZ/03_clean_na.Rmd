@@ -127,6 +127,11 @@ ggplot(data = vaccine_final, aes(x = date, y = cumsum_total_vaccination)) + geom
 ```
 
 
+
+```{r}
+
+```
+
 #Example Zoo fill in NA
 ```{r}
 library(zoo)

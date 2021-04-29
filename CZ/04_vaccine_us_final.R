@@ -1,5 +1,5 @@
 
-for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc", "tidyselect"))
+for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc", "tidyselect","USAboundaries"))
   {library(pkg, character.only = TRUE)}
 
 # read in data
@@ -58,16 +58,28 @@ vaccine_us_new <- as.data.frame(vaccine_us_new)
 vaccine_us_new$state <- vaccine_us$state_territory_federal_entity
 vaccine_us_new$state <-  tolower(vaccine_us_new$state)
 
-vaccine_us_long <- vaccine_us_new%>%
-  #gather by age group percent
+#gather by age group percent
+vaccine_us_new_pop <- vaccine_us_new%>%
   gather(key ="population" , value="percent_vaccinated", pct_vaccinated, pct_65_vaccinated, pct_18_vaccinated )%>%
   mutate(population = if_else(population == "pct_18_vaccinated", "18+",
                               if_else(population == "pct_65_vaccinated","65+",
                                       "all")))%>%
-  #gather by fully/partial status percent
-  gather(key ="population2" , value="percent_fully_vaccinated", pct_fully_vaccinated, pct_65_fully_vaccinated, pct_18_fully_vaccinated )%>%
-  select(-population2)%>%
-  #gather overall percent
+  select(state, population, percent_vaccinated)%>%
+  filter(!is.na(percent_vaccinated))
+
+#gather by fully/partial status percent
+vaccine_us_new_status <- vaccine_us_new%>%
+  gather(key ="population" , value="percent_fully_vaccinated", pct_fully_vaccinated, pct_65_fully_vaccinated, pct_18_fully_vaccinated )%>%
+  select(state, population, percent_fully_vaccinated)%>%
+  mutate(population = if_else(population == "pct_18_fully_vaccinated", "18+",
+                              if_else(population == "pct_65_fully_vaccinated","65+",
+                                      "all")))%>%
+  filter(!is.na(percent_fully_vaccinated))
+
+vaccine_us_new_pop_status <- merge(vaccine_us_new_pop, vaccine_us_new_status, by = c("state", "population"), all =T)
+
+#gather overall percent
+vaccine_us_long <- vaccine_us_new_pop_status%>%
   gather(key = "status", value = "percent", percent_vaccinated, percent_fully_vaccinated)%>%
   mutate(status = if_else(status == "percent_fully_vaccinated", "fully vaccinated", "at least one dose"))%>%
   select(state,population, status, percent)%>%
@@ -134,6 +146,9 @@ factor  <- vaccine_us_long_quantile%>%
   dplyr::summarize(N=n())
 
 vaccine_us_long_quantile$percent_q <- factor(vaccine_us_long_quantile$percent_q, levels =factor$percent_q)
+#add state abbreviation
+vaccine_us_long_quantile$abb<-state.abb[match(vaccine_us_long_quantile$state,tolower(state.name))]
+
 
 #join with the us state dataset for the plot
 us_states <- map_data("state")
@@ -143,6 +158,7 @@ us_states_vaccine$region <-  capitalize(us_states_vaccine$region)
 ##########################################
 # vaccine brand
 vaccine_brand <- vaccine_us_new%>%
+  filter(!is.na( pct_vaccinated))%>%
   mutate(population = round(people_vaccinated/ pct_vaccinated * 100, digits=2),
          pct_janssen = round(janssen_admin/population * 100,digits=2),
                 pct_moderna = round(moderna_admin/population * 100,digits=2),
@@ -165,23 +181,177 @@ vaccine_brand <- vaccine_brand%>%
                                          if_else(pct_moderna < quantile_moderna[4],  qname(quantile_moderna,3,4,""),  qname(quantile_moderna,4,5,"")))))%>%
   mutate(pct_pfizer_q = if_else(pct_pfizer < quantile_pfizer[2], qname(quantile_pfizer,1,2,""),
                                 if_else(pct_pfizer < quantile_pfizer[3], qname(quantile_pfizer,2,3,""),
-                                        if_else(pct_pfizer < quantile_pfizer[4],qname(quantile_pfizer,3,4,""), qname(quantile_pfizer,4,5,"")))))%>%
+                                        if_else(pct_pfizer < quantile_pfizer[4],qname(quantile_pfizer,3,4,""), qname(quantile_pfizer,4,5,"")))))
+
+vaccine_brand_quantile <- vaccine_brand%>%
+  select(state,pct_pfizer_q, pct_janssen_q, pct_moderna_q)%>%
   gather(key = "brand", value = "percent_q", pct_pfizer_q, pct_janssen_q, pct_moderna_q)%>%
   mutate(brand = if_else(brand == "pct_janssen_q", "Janssen(J&J)",
-                         if_else(brand == "pct_moderna_q", "Moderna", "Pfizer")))%>%
-  gather(key = "brand2", value = "percent", pct_pfizer, pct_janssen, pct_moderna)%>%
-  select(-brand2)%>%
-  select(state, brand, percent, percent_q)%>%
-  filter(!is.na(percent))
+                         if_else(brand == "pct_moderna_q", "Moderna", "Pfizer")))
 
-factor  <- vaccine_brand%>%
+
+vaccine_brand_percent <- vaccine_brand%>%
+  select(state, pct_moderna, pct_pfizer, pct_janssen)%>%
+  gather(key = "brand", value = "percent",  pct_moderna, pct_pfizer, pct_janssen)%>%
+  mutate(brand = if_else(brand == "pct_janssen", "Janssen(J&J)",
+                         if_else(brand == "pct_moderna", "Moderna", "Pfizer")))
+
+vaccine_brand_all <- merge(vaccine_brand_quantile, vaccine_brand_percent, by =c("state", "brand"), all=T)
+
+factor  <- vaccine_brand_all%>%
   dplyr::group_by(brand,percent_q)%>%
   dplyr::summarize(N=n())
 
-vaccine_brand$percent_q <- factor(vaccine_brand$percent_q, levels =factor$percent_q)
+level <- c("[0.04,1.7225)", "[1.7225,2.225)", "[2.225,2.7575)", "[2.7575,5.22)" ,   "[8.93,27.27)" , "[27.27,30.925)" ,
+           "[30.925,33.23)" ,  "[33.23,106.94)"  ,    "[0,32.765)"  ,     "[32.765,36.835)" ,
+          "[36.835,40.9525)", "[40.9525,59.33)" )
+vaccine_brand_all$percent_q <- factor(vaccine_brand_all$percent_q, levels =level)
+#add state abbreviation
+vaccine_brand_all$abb<-state.abb[match(vaccine_brand_all$state,tolower(state.name))]
 
 
 #join with the us state dataset for the plot
 us_states <- map_data("state")
-us_states_brand <- left_join(us_states, vaccine_brand, by=c("region" = "state"))
+us_states_brand <- left_join(us_states, vaccine_brand_all, by=c("region" = "state"))
 us_states_brand$region <-  capitalize(us_states_brand$region)
+
+centroids <- data.frame(region=tolower(state.name), long=state.center$x, lat=state.center$y)
+centroids$abb<-state.abb[match(centroids$region,tolower(state.name))]
+
+state <- state_codes
+state$state_name <-  tolower(state$state_name)
+
+
+#output data:
+#vaccine_us_long_quantile
+#us_states_vaccine (with long lat)
+
+#vaccine_brand
+#vaccine_brand_all
+#us_states_brand (with long lat)
+
+#centroids (for abbreviation on the map)
+
+capFirst <- function(s) {
+  paste(toupper(substring(s, 1, 1)), substring(s, 2), sep = "")
+}
+
+
+
+barplot_us <- function( pop=pop){
+
+  vaccine_us_long_edit <- vaccine_us_long%>%
+    spread(status, percent)%>%
+    clean_names()%>%
+    filter(population == pop)%>%
+    left_join(state, by = c("state" = "state_name"))%>%
+    filter(jurisdiction_type %in% c("state", "district"))%>%
+    dplyr::select(-jurisdiction_type)%>%
+    arrange(desc(fully_vaccinated))%>%
+    mutate(state = factor(state, levels=state))
+
+  vaccine_us_long_edit$state <- str_to_title(vaccine_us_long_edit$state)
+
+  ggplot(vaccine_us_long_edit)+
+    theme_classic() +
+    theme(axis.title = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.line = element_blank(),
+          text = element_text(size=20)) +
+
+    # add a dummy point for scaling purposes
+    geom_point(aes(x = 12, y = state),
+               size = 0, col = "white")+
+
+    # add the horizontal state lines
+    geom_hline(yintercept = 1:50, col = "grey80")+
+
+    # add a point for each fully vaccinated rate
+    geom_point(aes(x = fully_vaccinated, y = state),
+               size = 11, col = colours[4]) +
+    # add a point for each partially vaccinated rate
+    geom_point(aes(x = at_least_one_dose, y = state),
+               size = 11, col = colours[2]) +
+    # add the text (%) for each pfizer success rate
+    geom_text(aes(x = fully_vaccinated, y = state,
+                  label = paste0(round(fully_vaccinated, 1.3))),
+              col = "white") +
+    # add the text (%) for each moderna success rate
+    geom_text(aes(x = at_least_one_dose, y = state,
+                  label = paste0(round(at_least_one_dose, 1.3))),
+              col = "black")+
+    # add a label above the first two points
+    geom_text(aes(x = x, y = y, label = label, col = label),
+              data.frame(x = c(40, 55), y = 54,
+                         label = c("Fully Vaccinated", "At Least One Dose")), size = 6) +
+    scale_color_manual(values = c(colours[4], colours[2]), guide = "none")  +
+    # manually set the spacing above and below the plot
+    scale_y_discrete(expand = c(0.1, 0)) +
+    # manually specify the x-axis
+    scale_x_continuous(breaks = c(0, 15, 30, 45, 60, 75),
+                       labels = c("0%", "15%", "30%", "45%","60%","75%"))
+}
+
+
+barplot_brand <- function(vaccine_brand){
+  vaccine_brand_edit <-  vaccine_brand%>%
+    dplyr::select(state, pct_moderna, pct_pfizer, pct_janssen)%>%
+    left_join(state, by = c("state" = "state_name"))%>%
+    filter(jurisdiction_type %in% c("state", "district"))%>%
+    dplyr::select(-jurisdiction_type)%>%
+    arrange(pct_pfizer)%>%
+    mutate(state = factor(state, levels=state))
+
+  vaccine_brand_edit$state <- str_to_title(vaccine_brand_edit$state)
+
+ggplot(vaccine_brand_edit)+
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line = element_blank(),
+        text = element_text(size=20)) +
+
+  # add a dummy point for scaling purposes
+  geom_point(aes(x = 12, y = state),
+             size = 0, col = "white")+
+
+  # add the horizontal state lines
+  geom_hline(yintercept = 1:50, col = "grey80")+
+
+  # add a point for each pfizer vaccination rate
+  geom_point(aes(x = pct_pfizer, y = state),
+             size = 11, col = colours[4]) +
+  # add a point for each moderna success rate
+  geom_point(aes(x = pct_moderna, y = state),
+             size = 11, col = colours[3]) +
+  # add a point for each J&J success rate
+  geom_point(aes(x = pct_janssen, y = state),
+             size = 11, col = colours[2])  +
+  # add the text (%) for each pfizer success rate
+  geom_text(aes(x = pct_pfizer, y = state,
+                label = paste0(round(pct_pfizer, 1.3))),
+            col = "white") +
+  # add the text (%) for each moderna success rate
+  geom_text(aes(x = pct_moderna, y = state,
+                label = paste0(round(pct_moderna, 1.3))),
+            col = "black")+
+  # add the text (%) for each J&J success rate
+  geom_text(aes(x = pct_janssen, y = state,
+                label = paste0(round(pct_janssen, 1.3))),
+            col = "black") +
+  # add a label above the first two points
+  geom_text(aes(x = x, y = y, label = label, col = label),
+            data.frame(x = c(6, 35, 45), y = 54,
+                       label = c("Pfizer", "Moderna", "J&J")), size = 8) +
+  scale_color_manual(values = c(colours[4], colours[3], colours[2]), guide = "none")  +
+  # manually set the spacing above and below the plot
+  scale_y_discrete(expand = c(0.1, 0)) +
+  # manually specify the x-axis
+  scale_x_continuous(breaks = c(0, 15, 30, 45),
+                     labels = c("0%", "15%", "30%", "45%"))
+}
+
+#barplot_brand(vaccine_brand)
+
+
+

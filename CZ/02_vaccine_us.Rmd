@@ -18,9 +18,7 @@ source("CZ/04_vaccine_us_final.R")
 
 ```{r}
 colours <- c("#E5F2DF", "#95C182", "#519A37", "#2D6814")
-pop =  "all"
-vstatus = "fully vaccinated"
-data = us_states_vaccine
+
 plot1 <- function(data, pop, vstatus){
   ggplot(data = filter(data, population== pop, status == vstatus),
             aes(x = long, y = lat,
@@ -30,16 +28,20 @@ plot1 <- function(data, pop, vstatus){
   labs(title=paste0("Vaccination Status in the U.S. Among ", "18+"),
         x =" ", y = " ")+
       theme_void()+
-  scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824", midpoint = 50,limits=c(0, 100), breaks=seq(0,100,by=20))
+  scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824", midpoint = 50,limits=c(0, 100), breaks=seq(0,100,by=20))+
+  with(centroids, 
+       annotate(geom="text", x = long, y=lat, label = abb, 
+                size = 4,color="white",family="Times")
+      )
 }
 
-plot1(data, pop, vstatus)
+
+plot1(data=us_states_vaccine, pop="all", vstatus="fully vaccinated")
 
 p1<- plot1(data=us_states_vaccine, pop = "65+", vstatus= "fully vaccinated")
 
 ggplotly(p1, tooltip = c("text")) %>% 
   layout(legend = list(font = list(size=11)))
-
 
 
 p2 <- plot1.quantile(data=us_states_vaccine, pop = "all", vstatus= "at least one dose")
@@ -66,7 +68,11 @@ plot2 <- function(data = us_states_brand, vbrand = vbrand){
       theme(legend.title = element_text( size = 18),
             legend.text = element_text(size = 13),
             plot.title = element_text(size=18))+
-      labs(fill = "Percent (%)")
+      labs(fill = "Percent (%)")+
+  with(centroids, 
+       annotate(geom="text", x = long, y=lat, label = abb, 
+                size = 4,color="white",family="Times")
+      )
 }
 
 plot2(data = us_states_brand, vbrand = "Pfizer")
@@ -86,26 +92,77 @@ plot2.quantile <- function(data , vbrand = vbrand){
             legend.text = element_text(size = 13),
             plot.title = element_text(size=18))+
       labs(fill = "Percentage Quantile") +
-      scale_fill_manual(values = colours)
+      scale_fill_manual(values = colours)+
+  with(centroids, 
+       annotate(geom="text", x = long, y=lat, label = abb, 
+                size = 4,color="white",family="Times")
+      )
 }
-plot2.quantile(us_states_brand, "Pfizer")
-
-
-
-
-
-
-
-
+plot2.quantile(us_states_brand, "Moderna")
 
 ggplotly(plot2, tooltip = c("text")) %>% 
   layout(legend = list(font = list(size=11)))
 
-
-
-
 ggplotly(plot2.quantile, tooltip = c("text")) %>% 
   layout(legend = list(font = list(size=11)))
+
+
+
+#histogram
+
+  state <- state_codes
+  state$state_name <-  tolower(state$state_name)
+  
+  plot <-  data%>%
+    select(state, pct_moderna, pct_pfizer, pct_janssen)%>%
+  left_join(state, by = c("state" = "state_name"))%>%
+  filter(jurisdiction_type %in% c("state", "district"))%>%
+  arrange(pct_pfizer)%>%
+  mutate(state = factor(state, levels=state))%>%
+
+  ggplot()+
+  theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line = element_blank()) +
+          
+  # add a dummy point for scaling purposes
+  geom_point(aes(x = 12, y = state), 
+             size = 0, col = "white")+
+
+  # add the horizontal state lines
+  geom_hline(yintercept = 1:50, col = "grey80")+ 
+  
+  # add a point for each pfizer vaccination rate
+  geom_point(aes(x = pct_pfizer, y = state), 
+             size = 6, col = "#9DBEBB") +
+  # add a point for each moderna success rate
+  geom_point(aes(x = pct_moderna, y = state),
+             size = 6, col = "#468189") +
+  # add a point for each J&J success rate
+  geom_point(aes(x = pct_janssen, y = state),
+             size = 6, col = "#52C9BD")  + 
+  # add the text (%) for each pfizer success rate
+  geom_text(aes(x = pct_pfizer, y = state, 
+                label = paste0(round(pct_pfizer, 1))),
+            col = "black") +
+  # add the text (%) for each moderna success rate
+  geom_text(aes(x = pct_moderna, y = state, 
+                label = paste0(round(pct_moderna, 1))),
+            col = "black")+
+  # add the text (%) for each J&J success rate
+  geom_text(aes(x = pct_janssen, y = state, 
+                label = paste0(round(pct_janssen, 1))),
+            col = "black") +
+  # add a label above the first two points
+  geom_text(aes(x = x, y = y, label = label, col = label),
+            data.frame(x = c(25, 35, 45), y = 54, 
+                       label = c("Pfizer", "Moderna", "J&J")), size = 4) +
+  scale_color_manual(values = c("#9DBEBB", "#468189", "#52C9BD"), guide = "none")  +
+  # manually set the spacing above and below the plot
+  scale_y_discrete(expand = c(0.2, 0)) 
+  plot
+
 ```
 
 
