@@ -5,7 +5,7 @@ account: statshero
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4056032
-bundleId: 4538210
+bundleId: 4540095
 url: https://statshero.shinyapps.io/biost2094_project/
-when: 1619757262.55711
-lastSyncTime: 1619757262.55712
+when: 1619793375.11771
+lastSyncTime: 1619793375.11772

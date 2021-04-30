@@ -2,6 +2,8 @@
 # for (pkg in c("tidyverse", "readr", "dplyr", "countrycode", "janitor", "maps", "Hmisc", "tidyselect","USAboundaries"))
 #   {library(pkg, character.only = TRUE)}
 
+
+
 # read in data
 vaccine_us <- read_csv("data/vaccine_us.csv")
 # clean varaible names
@@ -78,12 +80,20 @@ vaccine_us_new_status <- vaccine_us_new%>%
 
 vaccine_us_new_pop_status <- merge(vaccine_us_new_pop, vaccine_us_new_status, by = c("state", "population"), all =T)
 
+state <- state_codes
+state$state_name <-  tolower(state$state_name)
+
+
 #gather overall percent
 vaccine_us_long <- vaccine_us_new_pop_status%>%
   gather(key = "status", value = "percent", percent_vaccinated, percent_fully_vaccinated)%>%
   mutate(status = if_else(status == "percent_fully_vaccinated", "fully vaccinated", "at least one dose"))%>%
   select(state,population, status, percent)%>%
-  filter(!is.na(percent))
+  filter(!is.na(percent))%>%
+  left_join(state, by=c("state" = "state_name"))%>%
+  filter(jurisdiction_type %in% c("state", "district"))%>%
+  select(-jurisdiction_type, -state_code,-state_abbr)
+
 
 # function to automatically format quantile label
 qname <- function (q, a, b, c){
@@ -218,9 +228,6 @@ us_states_brand$region <-  capitalize(us_states_brand$region)
 centroids <- data.frame(region=tolower(state.name), long=state.center$x, lat=state.center$y)
 centroids$abb<-state.abb[match(centroids$region,tolower(state.name))]
 
-state <- state_codes
-#state$state_name <-  tolower(state$state_name)
-
 
 #output data:
 #vaccine_us_long_quantile
@@ -236,6 +243,7 @@ capFirst <- function(s) {
   paste(toupper(substring(s, 1, 1)), substring(s, 2), sep = "")
 }
 
+state <- state_codes
 
 #plot
 colours <- c("#E5F2DF", "#95C182", "#3F8127", "#1F5208")
@@ -344,7 +352,7 @@ barplot_brand <- function(vaccine_brand){
   geom_text(aes(x = x, y = y, label = label, col = label),
             data.frame(x = c(6, 35, 45), y = 54,
                        label = c( "% J&J", "% Moderna","% Pfizer")), size = 6) +
-  scale_color_manual(values = c(colours[4], colours[3], colours[2]), guide = "none")  +
+  scale_color_manual(values = c(colours[2], colours[3], colours[4]), guide = "none")  +
   # manually set the spacing above and below the plot
   scale_y_discrete(expand = c(0.1, 0)) +
   # manually specify the x-axis
