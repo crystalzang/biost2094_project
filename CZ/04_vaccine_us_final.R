@@ -219,7 +219,7 @@ centroids <- data.frame(region=tolower(state.name), long=state.center$x, lat=sta
 centroids$abb<-state.abb[match(centroids$region,tolower(state.name))]
 
 state <- state_codes
-state$state_name <-  tolower(state$state_name)
+#state$state_name <-  tolower(state$state_name)
 
 
 #output data:
@@ -241,24 +241,18 @@ capFirst <- function(s) {
 colours <- c("#E5F2DF", "#95C182", "#3F8127", "#1F5208")
 
 barplot_us <- function( pop=pop){
-
-  vaccine_us_long_edit <- vaccine_us_long%>%
+  vaccine_us_long$state <- str_to_title(vaccine_us_long$state)
+  vaccine_us_long%>%
+    mutate(state = if_else(state == "District Of Columbia", "District of Columbia", state))%>%
     spread(status, percent)%>%
     clean_names()%>%
     filter(population == pop)%>%
     left_join(state, by = c("state" = "state_name"))%>%
     filter(jurisdiction_type %in% c("state", "district"))%>%
     dplyr::select(-jurisdiction_type)%>%
-    dplyr::arrange(fully_vaccinated)
-  #  mutate(state = factor(state, levels=state))%>%
-   #dplyr::mutate(state = fct_inorder(state))
-
-  vaccine_us_long_edit$state <- factor(vaccine_us_long_edit$state, levels =vaccine_us_long_edit$state)
-
-  vaccine_us_long_edit$state <- str_to_title(vaccine_us_long_edit$state)
-levels(vaccine_us_long_edit$state) <- vaccine_us_long_edit$state
-
-  ggplot(vaccine_us_long_edit)+
+    dplyr::arrange(at_least_one_dose)%>%
+    mutate(state = factor(state, levels=state))%>%
+   ggplot()+
     theme_classic() +
     theme(axis.title = element_blank(),
           axis.ticks.y = element_blank(),
@@ -288,7 +282,7 @@ levels(vaccine_us_long_edit$state) <- vaccine_us_long_edit$state
               col = "white")+
     # add a label above the first two points
     geom_text(aes(x = x, y = y, label = label, col = label),
-              data.frame(x = c(40, 55), y = 54,
+              data.frame(x = c(40, 59), y = 54,
                          label = c( "Fully Vaccinated","At Least One Dose")), size = 6) +
     scale_color_manual(values = c(colours[4], colours[2]), guide = "none")  +
     # manually set the spacing above and below the plot
@@ -301,17 +295,17 @@ levels(vaccine_us_long_edit$state) <- vaccine_us_long_edit$state
 barplot_us(pop="18+")
 
 barplot_brand <- function(vaccine_brand){
-  vaccine_brand_edit <-  vaccine_brand%>%
+  vaccine_brand$state <- str_to_title(vaccine_brand$state)
+
+  vaccine_brand%>%
+    mutate(state = if_else(state == "District Of Columbia", "District of Columbia", state))%>%
     dplyr::select(state, pct_moderna, pct_pfizer, pct_janssen)%>%
     left_join(state, by = c("state" = "state_name"))%>%
     filter(jurisdiction_type %in% c("state", "district"))%>%
     dplyr::select(-jurisdiction_type)%>%
     arrange(pct_pfizer)%>%
-    mutate(state = factor(state, levels=state))
-
-  vaccine_brand_edit$state <- str_to_title(vaccine_brand_edit$state)
-
-ggplot(vaccine_brand_edit)+
+    mutate(state = factor(state, levels=state))%>%
+    ggplot()+
   theme_classic() +
   theme(axis.title = element_blank(),
         axis.ticks.y = element_blank(),

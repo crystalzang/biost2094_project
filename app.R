@@ -369,8 +369,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                      ))
                  ),
                  navbarMenu(title = "US Vaccine Progress",
-                            ,
-                            tabPanel(title = "US Vaccine Brand Progress",
+                            tabPanel(title = "Vaccine Brand",
                                      sidebarLayout(
                                        sidebarPanel(
                                          # Options to select vaccine brand
@@ -403,7 +402,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                      )
 
                             ),
-                            tabPanel(title = "US Vaccine Progress",
+                            tabPanel(title = "Population and Vaccination Status",
                                      tags$style(type="text/css",
                                                 ".shiny-output-error { visibility: hidden; }",
                                                 ".shiny-output-error:before { visibility: hidden; }"
@@ -471,6 +470,22 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           tags$br(),tags$br(),tags$h4("Code"),
                           "Code and input data used to generate this Shiny mapping tool are available on ",tags$a(href="https://github.com/czang97/biost2094_project", "Github."),
 
+                          tags$br(),tags$br(),tags$h4("Data"),
+                          "We used multiple data sources: ", tags$br(),
+                          tags$ol(
+                            tags$li(tags$strong("Vaccinations against COVID-19"), ": is collected by the",
+                                    tags$a(href="https://ourworldindata.org/coronavirus", tags$em(" Our World in Data")),
+                                    "team from official reports, and hosted on ",
+                                    tags$a(href="https://github.com/owid/covid-19-data/tree/master/public/data", "GitHub.")),
+                            tags$li( tags$strong("Covid-19 Global Dataset"), " was scraped from",
+                                    tags$a(href="https://www.worldometers.info/coronavirus/", tags$em("woldometers.info")),
+                                    "on 2021-04-24 by Joseph Assaker, and hosted on ",
+                                    tags$a(href="https://www.kaggle.com/josephassaker/covid19-global-dataset?select=worldometer_coronavirus_summary_data.csv", "Kaggle")),
+                            tags$li(tags$strong("U.S. Vaccination against COVID-19") , ": is collected by",
+                                    tags$a(href= "https://www.cdc.gov/coronavirus/2019-ncov/vaccines/distributing/about-vaccine-data.html",
+                                           tags$em("Centers for Disease Control and Prevention (CDC)"))) ),
+                            tags$br(),
+
                           tags$br(),tags$br(),tags$h4("Contributor"),
                           br(),
                           "Crystal Zang",
@@ -485,7 +500,9 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                           br(),
                           br(),
                           br(),
-                          img(src = "logo.jpeg",height = 130, width=250 ))
+                          img(src = "logo.jpeg",height = 130, width=250 ),
+                          tags$br(),tags$br()
+                        )
 )
 
 # Define server ----
