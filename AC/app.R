@@ -21,12 +21,12 @@ if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-
 if(!require(countrycode)) install.packages("countrycode", repos = "http://cran.us.r-project.org")
 
 
-
 #Import & Clean Data
 
 
 coronavirus_daily <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/coronavirus_daily.csv")
 cleaned_data <- read.csv("C:/Users/Alexis Cenname/Desktop/Advanced R Computing/biost2094_project/data/clean_3.csv")
+
 
 
 cleaned_data$iso_code <- countrycode(cleaned_data$country, 'country.name','iso3c')
@@ -73,9 +73,7 @@ gather2$factored <- factor(gather2$case_group,
 gathered_data$country <- countrycode(gathered_data$iso_code, 'iso3c', 'country.name')
 
 
-
 #Shiny Tab
-
 ui <- navbarPage(title = "COVID-19 Vaccine",
                  # First Page
                  tabPanel(title = "About the site",
@@ -205,6 +203,7 @@ server <- function(input, output, session) {
 
 # Run the app ----
 shinyApp(ui = ui, server = server)
+
 
 
 
