@@ -150,8 +150,8 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                  tabPanel(title = "Worldwide Vaccine Progress"),
                  tabPanel(title = "Vaccine Progress Map"),
                  tabPanel(title = "US Vaccine Progress"),
-                 navbarMenu(title = "Reaching Herd Immunity",
-                   tabPanel(title = "Country Stats",
+                 navbarMenu(title = "Daily Statistics",
+                   tabPanel(title = "Country",
                             sidebarLayout(
                               sidebarPanel(
                                 selectInput("countrylist",
@@ -170,7 +170,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                              startview = "year", separator = " - ")),
                               mainPanel(plotlyOutput("countryplot", width = "100%", height = "100%"))
                             )),
-                   tabPanel(title="Continent Stats",
+                   tabPanel(title="Continent",
                             sidebarLayout(
                               sidebarPanel(
                                 selectInput("continentlist",
