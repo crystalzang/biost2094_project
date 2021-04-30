@@ -8,7 +8,10 @@
 vaccine_us <- read_csv("data/vaccine_us.csv")
 # clean varaible names
 vaccine_us <- vaccine_us%>%
-  clean_names()
+  clean_names()%>%
+  mutate(state_territory_federal_entity = if_else(state_territory_federal_entity == "New York State", "New York", state_territory_federal_entity))
+
+
 
 vaccine_us_new <- vaccine_us%>%
   select(state_territory_federal_entity,
