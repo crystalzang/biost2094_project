@@ -32,6 +32,8 @@ if(!require(tools)) install.packages("tools", repos = "http://cran.us.r-project.
 
 
 #Henry
+colours <- c("#E5F2DF", "#95C182", "#3F8127", "#1F5208")
+
 worldcountry <- geojson_read("data/custom.geo.json", what = "sp")
 countries <- read.csv("data/concap.csv")
 vaccines <- read.csv("data/clean_3.csv")
@@ -50,7 +52,8 @@ total2 <- inner_join(country_pops, total, by = "iso")
 total3 <- inner_join(total_vax, total2, by = "iso")
 leafletmap <- leaflet(worldcountry) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  addCircleMarkers(lng = total3$CapitalLongitude,
+  addCircleMarkers(color=colours[3],
+                   lng = total3$CapitalLongitude,
                    lat = total3$CapitalLatitude,
                    radius = round(total3$max/total3$max2*30, digits = 2),
                    label = total3$CountryName,
@@ -176,45 +179,45 @@ suppressWarnings(expr)
 source("CZ/04_vaccine_us_final.R")
 
 suppressWarnings(expr)
-plot1 <- function(data=us_states_vaccine, pop="18+", vstatus = "fully vaccinated"){
-  ggplot(data = filter(data, population== pop, status == vstatus),
+plot1 <- function(data, pop=pop, vstatus = vstatus){
+  data <- data %>%
+    filter(status ==vstatus, population == pop)
+
+  ggplot(data,
          aes(x = long, y = lat,
-             group = group, fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated") ))+
+             group = group, fill = percent,
+             text = paste0(region,": \n",  percent, "% are vaccinated") ))+
     geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
     labs(title=paste0("Vaccination Status in the U.S. Among ", pop, " Who Had ", vstatus),
          x =" ", y = " ")+
-    theme_void()+
     scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824", midpoint = 50,
                          limits=c(0, 100), breaks=seq(0,100,by=20))+
-    theme(legend.title = element_text( size = 18),
-          legend.text = element_text(size = 13),
-          plot.title = element_text(size=18))+
+    theme(legend.title = element_text( size = 13),
+          legend.text = element_text(size = 9),
+          plot.title = element_text(size=13))+
     labs(fill = "Percent (%)")+
-    with(centroids,
-         annotate(geom="text", x = long, y=lat, label = abb,
-                  size = 4,color="white",family="Times")
-    )
+    theme_minimal()
 }
 
-plot1.quantile <- function(data=us_states_vaccine, pop="18+", vstatus = "fully vaccinated"){
-  ggplot(data = filter(data, population == pop, status == vstatus),
+plot1.quantile <- function(data, pop=pop, vstatus = vstatus){
+  data <- data %>%
+    filter(status ==vstatus, population == pop)
+
+  ggplot(data,
          aes(x = long, y = lat,
-             group = group, fill = percent_q,  text = paste0(region,": ",  percent, "% are vaccinated")))+
+             group = group, fill = percent_q,
+             text = paste0(region,": \n",  percent, "% are vaccinated")))+
     geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
     labs(title=paste0("Vaccination Status in the U.S. Among ", pop, " Who Had ", vstatus),
          x =" ", y = " ")+
-    theme_void()+
-    theme(legend.title = element_text( size = 18),
-          legend.text = element_text(size = 13),
-          plot.title = element_text(size=18))+
+    theme(legend.title = element_text( size = 13),
+          legend.text = element_text(size = 9),
+          plot.title = element_text(size=13))+
     labs(fill = "Percent (%)")+
     scale_fill_manual(values = colours)+
-    with(centroids,
-         annotate(geom="text", x = long, y=lat, label = abb,
-                  size = 4,color="white",family="Times")
-    )
+    theme_minimal()
 }
 
 plot2 <- function(data = us_states_brand, vbrand = vbrand){
@@ -222,22 +225,18 @@ plot2 <- function(data = us_states_brand, vbrand = vbrand){
     filter(brand ==vbrand)
   ggplot(data ,
          aes(x = long, y = lat,
-             fill = percent,  text = paste0(region,": ",  percent, "% are vaccinated with ", vbrand)))+
+             fill = percent,  text = paste0(region,": \n",  percent, "% are vaccinated with ", vbrand)))+
     geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
     labs(title=paste0("Vaccination Status in the U.S. By ", vbrand),
          x =" ", y = " ")+
-    theme_void()+
     scale_fill_gradient2(low = "white", mid = "#67A24D", high = "#3B6824",
                          midpoint = 50,limits=c(0, 80), breaks=seq(0,80,by=20))+
-    theme(legend.title = element_text( size = 18),
-          legend.text = element_text(size = 13),
-          plot.title = element_text(size=18))+
+    theme(legend.title = element_text( size = 13),
+          legend.text = element_text(size = 9),
+          plot.title = element_text(size=13))+
     labs(fill = "Percent (%)")+
-    with(centroids,
-         annotate(geom="text", x = long, y=lat, label = abb,
-                  size = 4,color="white",family="Times")
-    )
+    theme_minimal()
 }
 
 plot2.quantile <- function(data , vbrand = vbrand){
@@ -245,21 +244,17 @@ plot2.quantile <- function(data , vbrand = vbrand){
     filter(brand ==vbrand)
   ggplot(data = filter(us_states_brand, brand == vbrand),
          aes(x = long, y = lat,
-             fill = percent_q,  text = paste0(region,": ",  percent, "% are vaccinated with ", vbrand)))+
+             fill = percent_q,  text = paste0(region,": \n",  percent, "% are vaccinated with ", vbrand)))+
     geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45)+
     labs(title=paste0("Vaccination Status in the U.S. By ", vbrand),
          x =" ", y = " ")+
-    theme_void()+
-    theme(legend.title = element_text( size = 18),
-          legend.text = element_text(size = 13),
-          plot.title = element_text(size=18))+
+    theme(legend.title = element_text( size = 13),
+          legend.text = element_text(size = 9),
+          plot.title = element_text(size=13))+
     labs(fill = "Percentage Quantile") +
     scale_fill_manual(values = colours)+
-    with(centroids,
-         annotate(geom="text", x = long, y=lat, label = abb,
-                  size = 4,color="white",family="Times")
-    )
+    theme_minimal()
 }
 
 plot2.barplot <- function(data, vbrand){
@@ -394,7 +389,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                                                choices = c("Actual Percent", "Quantile"),
                                                                selected = "Quantile")
                                            )),
-                                         plotOutput("us_vaccine_plot2"),
+                                         plotlyOutput("us_vaccine_plot2"),
                                          width=9,
                                          plotOutput("us_vaccine_barplot_brand", height = 1500),
                                          tags$br(), tags$br(),tags$br()
@@ -416,14 +411,14 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                                       choices = list("Total population" = "all",
                                                                      "18+" = "18+",
                                                                      "65+" = "65+"),
-                                                      selected = "Total population"),
+                                                      selected = "all"),
 
                                          # Options to select vaccine status
                                          radioButtons("vstatus",
                                                       label = h3("Vaccine Status"),
                                                       choices = list("At least one dose" = "at least one dose",
                                                                      "Fully vaccinated" = "fully vaccinated"),
-                                                      selected = "At Least One Dose"),
+                                                      selected = "at least one dose"),
                                          width=3
                                        ),
                                        mainPanel(
@@ -439,7 +434,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                                                choices = c("Actual Percent", "Quantile"),
                                                                selected = "Actual Percent")
                                            )),
-                                         plotOutput("us_vaccine_plot"),
+                                         plotlyOutput("us_vaccine_plot"),
                                          width=9,
                                          plotOutput("us_vaccine_barplot_pop", height = 1500),
                                          tags$br(), tags$br(),tags$br()
@@ -450,6 +445,7 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
 
                  # About the Site
                  tabPanel(title = "About the site",
+
                           tags$br(),tags$br(),tags$h4("Background"),
                           "SARS-CoV-2 has impacted the world in an unprecedented way,
                       with the world having changed significantly since H2N2/H3N2
@@ -486,22 +482,25 @@ ui <- navbarPage(title = "COVID-19 Vaccine",
                                            tags$em("Centers for Disease Control and Prevention (CDC)"))) ),
                             tags$br(),
 
-                          tags$br(),tags$br(),tags$h4("Contributor"),
+                          tags$br(),tags$br(),tags$h4("Contributors"),
                           br(),
-                          "Crystal Zang",
+                          HTML('<center><img src="upitt_building.png" height = 250 width=400"></center>'),
+
+                          tags$a(href= "https://github.com/czang97","Crystal Zang"),
                           br(),
-                          "Liling Lu",
+                          tags$a(href= "https://github.com/lilinglu","Liling Lu"),
                           br(),
-                          "Alexis Cenname",
+                          tags$a(href= "https://github.com/AlexisCenname","Alexis Cenname"),
                           br(),
-                          "Henry Thrope",
-                          br(),
-                          br(),
-                          br(),
+                          tags$a(href= "https://github.com/hthorpe31","Henry Thrope"),
+
                           br(),
                           br(),
-                          img(src = "logo.jpeg",height = 130, width=250 ),
-                          tags$br(),tags$br()
+                          img(src = "logo.jpeg",height = 90, width=200 ),
+                          tags$br(),tags$br(),
+
+                          "We hope you find this app useful. Any comments or questions are welcome to", tags$a(href= "mailto:crystalzangzzw@gmail.com","email us."),
+                          tags$br(),tags$br(),tags$br(),tags$br()
                         )
 )
 
@@ -611,29 +610,32 @@ server <- function(input, output, session) {
                                                                                         tickmode="auto", nticks = 6)))
 
 ######## Crystal
-  output$us_vaccine_plot <- renderPlot({
+  output$us_vaccine_plot <- renderPlotly({
     if (input$display_option_p1 == "Actual Percent"){
-      p1 <- plot1(us_states_vaccine, pop=input$pop, vstatus = input$vstatus)
-      p1
-      # ggplotly(p1, tooltip = "text") %>%
-      #    layout(legend = list(font = list(size=11)))
+      p <- plot1(us_states_vaccine, pop=input$pop, vstatus = input$vstatus)
+
+      plotly::ggplotly(p, tooltip = "text") %>%
+         layout(legend = list(font = list(size=11)))
+
     }else if (input$display_option_p1 == "Quantile") {
-      p1.q <- plot1.quantile(us_states_vaccine, pop = input$pop, vstatus = input$vstatus)
-      p1.q
-      # ggplotly(p1.q, tooltip = "text") %>%
-      #   layout(legend = list(font = list(size=11)))
+      p <- plot1.quantile(us_states_vaccine, pop = input$pop, vstatus = input$vstatus)
+
+      plotly::ggplotly(p, tooltip = "text") %>%
+        layout(legend = list(font = list(size=11)))
     }
   })
 
-  output$us_vaccine_plot2 <- renderPlot({
-
+  output$us_vaccine_plot2 <- renderPlotly({
     if (input$display_option == "Actual Percent"){
-      plot2(us_states_brand, vbrand = input$vbrand)
+      p <- plot2(us_states_brand, vbrand = input$vbrand)
 
-      # plotly::ggplotly(plot2, tooltip = c("text")) %>%
-      #  layout(legend = list(font = list(size=11)))
+      plotly::ggplotly(p, tooltip = c("text")) %>%
+       layout(legend = list(font = list(size=11)))
+
     }else if (input$display_option == "Quantile") {
-      plot2.quantile(us_states_brand, input$vbrand)
+      p <- plot2.quantile(us_states_brand, input$vbrand)
+      plotly::ggplotly(p, tooltip = c("text")) %>%
+        layout(legend = list(font = list(size=11)))
     }
 
   })

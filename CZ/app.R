@@ -28,7 +28,7 @@ if(!require(tools)) install.packages("tools", repos = "http://cran.us.r-project.
 
 
 
-source("/Users/czang/Documents/2021Spring/R/biost2094_project/CZ/04_vaccine_us_final.R")
+source("CZ/04_vaccine_us_final.R")
 
 colours <- c("#E5F2DF", "#95C182", "#3F8127", "#1F5208")
 suppressWarnings(expr)
@@ -175,7 +175,7 @@ ui <- navbarPage(
                           br(),
                           br(),
                           br(),
-                          img(src = "/Users/czang/Documents/2021Spring/R/biost2094_project/www/logo.jpeg",height = 130, width=250)),
+                          img(src = "www/logo.jpeg",height = 130, width=250)),
                  tabPanel(title = "Worldwide Vaccine Progress"),
                  tabPanel(title = "Vaccine Progress Map"),
                  navbarMenu(title = "US Vaccine Progress",

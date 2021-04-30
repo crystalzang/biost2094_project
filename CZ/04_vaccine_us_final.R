@@ -282,14 +282,14 @@ barplot_us <- function( pop=pop){
               col = "white")+
     # add a label above the first two points
     geom_text(aes(x = x, y = y, label = label, col = label),
-              data.frame(x = c(40, 59), y = 54,
-                         label = c( "Fully Vaccinated","At Least One Dose")), size = 6) +
+              data.frame(x = c(30, 50), y = 54,
+                         label = c( "% Fully Vaccinated","% At Least One Dose")), size = 6) +
     scale_color_manual(values = c(colours[4], colours[2]), guide = "none")  +
     # manually set the spacing above and below the plot
-    scale_y_discrete(expand = c(0.1, 0)) +
+    scale_y_discrete(expand = c(0.2, 0.05)) +
     # manually specify the x-axis
-    scale_x_continuous(breaks = c(0, 15, 30, 45, 60, 75),
-                       labels = c("0%", "15%", "30%", "45%","60%","75%"))
+    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100),
+                       labels = c("0%", "20%", "40%", "60%","80%","100%"))
 }
 
 barplot_us(pop="18+")
@@ -343,13 +343,13 @@ barplot_brand <- function(vaccine_brand){
   # add a label above the first two points
   geom_text(aes(x = x, y = y, label = label, col = label),
             data.frame(x = c(6, 35, 45), y = 54,
-                       label = c("Pfizer", "Moderna", "J&J")), size = 8) +
+                       label = c( "% J&J", "% Moderna","% Pfizer")), size = 6) +
   scale_color_manual(values = c(colours[4], colours[3], colours[2]), guide = "none")  +
   # manually set the spacing above and below the plot
   scale_y_discrete(expand = c(0.1, 0)) +
   # manually specify the x-axis
-  scale_x_continuous(breaks = c(0, 15, 30, 45),
-                     labels = c("0%", "15%", "30%", "45%"))
+    scale_x_continuous(breaks = c(0, 20, 40, 60, 80, 100),
+                       labels = c("0%", "20%", "40%", "60%","80%","100%"))
 }
 
 #barplot_brand(vaccine_brand)
